@@ -53,6 +53,8 @@ dependencies {
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.datastore.preferences)
     implementation(libs.coil.compose)
+    implementation(libs.androidx.exifinterface)
+    implementation(libs.mlkit.document.scanner)
 
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)
