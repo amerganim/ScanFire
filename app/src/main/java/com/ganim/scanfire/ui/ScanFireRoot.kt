@@ -37,7 +37,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import android.widget.Toast
+import androidx.compose.material.icons.outlined.Draw
 import androidx.compose.material.icons.outlined.TextFields
+import androidx.compose.ui.platform.LocalContext
+import com.ganim.scanfire.edit.SignatureScreen
+import com.ganim.scanfire.tools.ToolsScreen
+import com.ganim.scanfire.ui.common.appContainer
 import androidx.compose.material.icons.outlined.Tune
 import com.ganim.scanfire.ocr.OcrScreen
 import com.ganim.scanfire.ocr.OcrViewModel
@@ -68,6 +74,8 @@ object Routes {
     fun edit(pageId: Long) = "edit/$pageId"
     const val REORDER = "doc/{docId}/reorder"
     fun reorder(docId: Long) = "doc/$docId/reorder"
+    const val SIGN = "sign/{pageId}"
+    fun sign(pageId: Long) = "sign/$pageId"
     const val OCR = "ocr/{docId}/{pageId}"
     /** [pageId] 0 means every page of the document. */
     fun ocr(docId: Long, pageId: Long = 0) = "ocr/$docId/$pageId"
@@ -89,7 +97,7 @@ fun ScanFireRoot() {
     val current = backStack?.destination
     val onTab = Tab.entries.any { tab -> current?.hierarchy?.any { it.route == tab.route } == true }
 
-    val captureVm = containerViewModel { CaptureViewModel(it.library, it.pages, it.settings) }
+    val captureVm = containerViewModel { CaptureViewModel(it.library, it.pages, it.settings, it.pdfTools) }
     val busy by captureVm.busy.collectAsStateWithLifecycle()
     var target by remember { mutableStateOf<CaptureTarget>(CaptureTarget.NewDocument(null)) }
 
@@ -116,9 +124,22 @@ fun ScanFireRoot() {
                         onOpenDocument = { nav.navigate(Routes.doc(it)) },
                         onScan = { capture.scan(CaptureTarget.NewDocument(it)) },
                         onImportImages = { capture.pickImages(CaptureTarget.NewDocument(it)) },
+                        onMerge = { ids, folder -> captureVm.mergeDocuments(ids, folder) { nav.navigate(Routes.doc(it)) } },
                     )
                 }
-                composable(Tab.Tools.route) { Placeholder("Tools") }
+                composable(Tab.Tools.route) {
+                    val context = LocalContext.current
+                    ToolsScreen(
+                        scanTools = emptyList(),
+                        onImportPdf = { file, name, password ->
+                            captureVm.newDocumentFromPdf(
+                                null, file, name, password,
+                                onDone = { nav.navigate(Routes.doc(it)) },
+                                onError = { Toast.makeText(context, "Couldn't import: ${it.message}", Toast.LENGTH_LONG).show() },
+                            )
+                        },
+                    )
+                }
                 composable(Tab.Settings.route) { Placeholder("Settings") }
 
                 composable(Routes.DOC, arguments = listOf(navArgument("docId") { type = NavType.LongType })) { entry ->
@@ -147,8 +168,12 @@ fun ScanFireRoot() {
                         actions = listOf(
                             PageAction("Edit", Icons.Outlined.Tune) { nav.navigate(Routes.edit(it.id)) },
                             PageAction("Text", Icons.Outlined.TextFields) { nav.navigate(Routes.ocr(docId, it.id)) },
+                            PageAction("Sign", Icons.Outlined.Draw) { nav.navigate(Routes.sign(it.id)) },
                         ),
                     )
+                }
+                composable(Routes.SIGN, arguments = listOf(navArgument("pageId") { type = NavType.LongType })) { entry ->
+                    SignatureScreen(entry.arguments!!.getLong("pageId"), appContainer().pages, onClose = { nav.popBackStack() })
                 }
                 composable(
                     Routes.OCR,

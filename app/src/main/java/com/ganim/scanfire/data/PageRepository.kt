@@ -96,6 +96,54 @@ class PageRepository(
         pages.forEach { files.deleteFiles(it.documentId, it.imageFile, it.originalFile) }
     }
 
+    /** Appends copies of every page of [fromDocIds] (in order) to [toDocId]; the sources are untouched. */
+    suspend fun copyPages(fromDocIds: List<Long>, toDocId: Long) = withContext(Dispatchers.IO) {
+        var position = db.pages().maxPosition(toDocId) + 1
+        val copies = mutableListOf<PageEntity>()
+        for (docId in fromDocIds) {
+            for (page in db.pages().forDocument(docId)) {
+                val original = files.newImageName("_o")
+                val image = files.newImageName()
+                originalFile(page).copyTo(files.file(toDocId, original), overwrite = true)
+                imageFile(page).copyTo(files.file(toDocId, image), overwrite = true)
+                copies += page.copy(id = 0, documentId = toDocId, position = position++, originalFile = original, imageFile = image)
+            }
+        }
+        db.withTransaction {
+            db.pages().insertAll(copies)
+            db.documents().touch(toDocId)
+        }
+    }
+
+    /**
+     * Burns [overlay] (e.g. a signature) into the page at [rect], normalised to the page as shown.
+     * The current rotation and crop are baked into a new original so later edits keep the stamp
+     * in place; the filter is re-applied on top.
+     */
+    suspend fun stamp(pageId: Long, overlay: Bitmap, rect: RectF) = withContext(Dispatchers.IO) {
+        val page = db.pages().get(pageId) ?: return@withContext
+        val source = Bitmaps.decode(originalFile(page)) ?: return@withContext
+        val base = PageRenderer.render(source, page.rotation, RectF(page.cropLeft, page.cropTop, page.cropRight, page.cropBottom), "original")
+            .copy(Bitmap.Config.ARGB_8888, true)
+        android.graphics.Canvas(base).drawBitmap(
+            overlay, null,
+            RectF(rect.left * base.width, rect.top * base.height, rect.right * base.width, rect.bottom * base.height),
+            android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG),
+        )
+        val originalName = files.newImageName("_o")
+        val imageName = files.newImageName()
+        Bitmaps.save(base, files.file(page.documentId, originalName), quality = 95)
+        Bitmaps.save(PageRenderer.render(base, 0, FULL, page.filter), files.file(page.documentId, imageName))
+        db.pages().update(
+            page.copy(
+                originalFile = originalName, imageFile = imageName, rotation = 0,
+                cropLeft = 0f, cropTop = 0f, cropRight = 1f, cropBottom = 1f, updatedAt = System.currentTimeMillis(),
+            ),
+        )
+        db.documents().touch(page.documentId)
+        files.deleteFiles(page.documentId, page.originalFile, page.imageFile)
+    }
+
     suspend fun setOcrText(pageId: Long, text: String?) {
         db.pages().get(pageId)?.let { db.pages().update(it.copy(ocrText = text)) }
     }

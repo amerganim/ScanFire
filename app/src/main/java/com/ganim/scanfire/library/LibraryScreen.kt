@@ -30,6 +30,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.outlined.CallMerge
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.CreateNewFolder
@@ -102,6 +103,7 @@ fun LibraryScreen(
     onOpenDocument: (Long) -> Unit,
     onScan: (folderId: Long?) -> Unit,
     onImportImages: (folderId: Long?) -> Unit,
+    onMerge: (docIds: List<Long>, folderId: Long?) -> Unit = { _, _ -> },
 ) {
     val vm = containerViewModel { LibraryViewModel(it.library, it.settings) }
     val state by vm.state.collectAsStateWithLifecycle()
@@ -124,6 +126,9 @@ fun LibraryScreen(
                     count = state.selection.size,
                     onClose = vm::clearSelection,
                     onSelectAll = vm::selectAll,
+                    onMerge = if (state.selection.size >= 2) {
+                        { onMerge(state.documents.filter { it.id in state.selection }.map { it.id }, state.currentFolderId); vm.clearSelection() }
+                    } else null,
                     onMove = { dialog = LibraryDialog.MoveDocuments(state.selection) },
                     onDelete = { dialog = LibraryDialog.DeleteDocuments(state.selection) },
                 )
@@ -225,12 +230,13 @@ fun LibraryScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SelectionBar(count: Int, onClose: () -> Unit, onSelectAll: () -> Unit, onMove: () -> Unit, onDelete: () -> Unit) {
+private fun SelectionBar(count: Int, onClose: () -> Unit, onSelectAll: () -> Unit, onMerge: (() -> Unit)?, onMove: () -> Unit, onDelete: () -> Unit) {
     TopAppBar(
         title = { Text("$count selected") },
         navigationIcon = { IconButton(onClick = onClose) { Icon(Icons.Filled.Close, "Clear selection") } },
         actions = {
             IconButton(onClick = onSelectAll) { Icon(Icons.Outlined.SelectAll, "Select all") }
+            if (onMerge != null) IconButton(onClick = onMerge) { Icon(Icons.Outlined.CallMerge, "Merge into new document") }
             IconButton(onClick = onMove) { Icon(Icons.Outlined.DriveFileMove, "Move") }
             IconButton(onClick = onDelete) { Icon(Icons.Outlined.Delete, "Delete") }
         },

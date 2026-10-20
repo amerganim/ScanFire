@@ -9,6 +9,7 @@ import com.ganim.scanfire.data.db.ScanFireDatabase
 import com.ganim.scanfire.export.Exporter
 import com.ganim.scanfire.ocr.OcrEngine
 import com.ganim.scanfire.ocr.Translator
+import com.ganim.scanfire.pdf.PdfTools
 
 /** Holds the app-wide singletons. */
 class AppContainer(val context: Context) {
@@ -20,4 +21,5 @@ class AppContainer(val context: Context) {
     val exporter: Exporter by lazy { Exporter(files) }
     val ocr: OcrEngine by lazy { OcrEngine() }
     val translator: Translator by lazy { Translator() }
+    val pdfTools: PdfTools by lazy { PdfTools(context, files) }
 }

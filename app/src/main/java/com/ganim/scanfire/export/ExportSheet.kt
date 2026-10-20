@@ -35,7 +35,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ganim.scanfire.ui.common.appContainer
 
 /** Like CreateDocument but with the MIME type chosen per launch. Input: (fileName, mime). */
-private class CreateTypedDocument : ActivityResultContract<Pair<String, String>, android.net.Uri?>() {
+internal class CreateTypedDocument : ActivityResultContract<Pair<String, String>, android.net.Uri?>() {
     override fun createIntent(context: android.content.Context, input: Pair<String, String>) =
         android.content.Intent(android.content.Intent.ACTION_CREATE_DOCUMENT)
             .addCategory(android.content.Intent.CATEGORY_OPENABLE)
