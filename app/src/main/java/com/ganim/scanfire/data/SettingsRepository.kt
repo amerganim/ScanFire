@@ -20,7 +20,8 @@ data class Settings(
     /** 0 system, 1 light, 2 dark. */
     val themeMode: Int = 0,
     val dynamicColor: Boolean = false,
-    val defaultFilter: String = "original",
+    /** Applied to imported photos. Magic colour is what makes a phone photo look scanned; Original stays one tap away. */
+    val defaultFilter: String = "magic",
     /** "a4", "letter", "fit" (page sized to the image). */
     val pdfPageSize: String = "a4",
     /** JPEG quality used inside PDFs and image exports, 40..100. */
@@ -51,7 +52,7 @@ class SettingsRepository(private val context: Context) {
         gridView = this[Keys.grid] ?: false,
         themeMode = this[Keys.theme] ?: 0,
         dynamicColor = this[Keys.dynamic] ?: false,
-        defaultFilter = this[Keys.filter] ?: "original",
+        defaultFilter = this[Keys.filter] ?: "magic",
         pdfPageSize = this[Keys.pageSize] ?: "a4",
         exportQuality = this[Keys.quality] ?: 85,
         pdfMargin = this[Keys.margin] ?: true,

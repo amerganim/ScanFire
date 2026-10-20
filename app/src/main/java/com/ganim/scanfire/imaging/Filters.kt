@@ -27,7 +27,7 @@ object Filters {
         bitmap.getPixels(px, 0, w, 0, 0, w, h)
         val out = when (f) {
             PageFilter.Original -> px
-            PageFilter.Enhance -> FilterKernels.enhance(px)
+            PageFilter.Enhance -> FilterKernels.enhance(px, w, h)
             PageFilter.Magic -> FilterKernels.magic(px, w, h)
             PageFilter.Gray -> FilterKernels.grayscale(px)
             PageFilter.BlackWhite -> FilterKernels.blackWhite(px, w, h)
