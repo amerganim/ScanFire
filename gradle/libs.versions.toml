@@ -26,6 +26,7 @@ textRecognitionLatin = "19.0.1"
 translate = "17.0.3"
 languageId = "17.0.0"
 pdfbox = "2.0.27.0"
+tesseract = "4.8.0"
 biometric = "1.1.0"
 appcompat = "1.7.1"
 
@@ -56,6 +57,8 @@ mlkit-text-korean = { module = "com.google.android.gms:play-services-mlkit-text-
 mlkit-translate = { module = "com.google.mlkit:translate", version.ref = "translate" }
 mlkit-language-id = { module = "com.google.android.gms:play-services-mlkit-language-id", version.ref = "languageId" }
 pdfbox-android = { module = "com.tom-roush:pdfbox-android", version.ref = "pdfbox" }
+# OpenMP build: uses several cores, noticeably faster on phones.
+tesseract-android = { module = "com.github.adaptech-cz.Tesseract4Android:tesseract4android-openmp", version.ref = "tesseract" }
 
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
 compose-ui = { module = "androidx.compose.ui:ui" }

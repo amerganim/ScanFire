@@ -28,7 +28,10 @@ data class OcrState(
     val edited: Boolean = false,
     val running: Boolean = false,
     val progress: Pair<Int, Int> = 0 to 0,
-    val script: OcrScript = OcrScript.Latin,
+    val language: OcrLanguage = OcrLanguage.MlKit(OcrScript.Latin),
+    /** Set when the chosen Tesseract language still needs its one-time download. */
+    val missing: OcrLanguage.Tesseract? = null,
+    val downloading: Boolean = false,
     val error: String? = null,
     val translation: String? = null,
     val translating: Boolean = false,
@@ -46,6 +49,7 @@ class OcrViewModel(
     private val engine: OcrEngine,
     private val translator: Translator,
     private val files: FileStore,
+    private val tessData: TessData,
 ) : ViewModel() {
     private val _state = MutableStateFlow(OcrState(singlePage = pageId > 0))
     val state: StateFlow<OcrState> = _state
@@ -57,36 +61,55 @@ class OcrViewModel(
     init {
         viewModelScope.launch {
             val doc = library.document(docId).filterNotNull().first()
-            val script = OcrScript.of(settings.settings.first().ocrScript)
+            val language = OcrLanguage.of(settings.settings.first().ocrScript)
             targets = pages.pagesNow(docId).filter { pageId <= 0 || it.id == pageId }
             val title = if (pageId > 0) "${doc.name} · page ${pages.pagesNow(docId).indexOfFirst { it.id == pageId } + 1}" else doc.name
-            _state.update { it.copy(title = title, script = script) }
+            _state.update { it.copy(title = title, language = language) }
             run(force = false)
         }
     }
 
-    fun setScript(script: OcrScript) {
-        _state.update { it.copy(script = script) }
-        viewModelScope.launch { settings.setOcrScript(script.key) }
+    fun setLanguage(language: OcrLanguage) {
+        _state.update { it.copy(language = language, missing = null) }
+        viewModelScope.launch { settings.setOcrScript(language.key) }
         run(force = true)
+    }
+
+    /** Fetches the missing Tesseract model (and English, for mixed pages), then reads the pages. */
+    fun downloadAndRun() {
+        val lang = _state.value.missing ?: return
+        viewModelScope.launch {
+            _state.update { it.copy(downloading = true, error = null) }
+            try {
+                tessData.download(lang.code)
+                if (lang.code != "eng") runCatching { tessData.download("eng") }
+                _state.update { it.copy(downloading = false, missing = null) }
+                run(force = true)
+            } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                _state.update { it.copy(downloading = false, error = "Download failed: ${e.message ?: "check your connection"}") }
+            }
+        }
     }
 
     /** Recognises every target page; cached text is reused unless [force]. */
     fun run(force: Boolean) {
         job?.cancel()
         job = viewModelScope.launch {
-            val script = _state.value.script
+            val language = _state.value.language
             _state.update { it.copy(running = true, error = null, progress = 0 to targets.size, translation = null) }
             val texts = mutableListOf<String>()
             try {
                 targets.forEachIndexed { i, page ->
                     val cached = if (force) null else page.ocrText
-                    val text = cached ?: engine.recognize(pages.imageFile(page), script).also { pages.setOcrText(page.id, it) }
+                    val text = cached ?: engine.recognize(pages.imageFile(page), language).also { pages.setOcrText(page.id, it) }
                     texts += text
                     _state.update { it.copy(progress = i + 1 to targets.size) }
                 }
                 targets = pages.pagesNow(docId).filter { t -> targets.any { it.id == t.id } }
                 _state.update { it.copy(text = combine(texts), edited = false, running = false) }
+            } catch (e: OcrLanguageMissing) {
+                _state.update { it.copy(running = false, missing = e.language) }
             } catch (e: Exception) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
                 _state.update {

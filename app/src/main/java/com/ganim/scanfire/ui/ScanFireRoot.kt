@@ -56,6 +56,7 @@ import com.ganim.scanfire.tools.ToolTile
 import com.ganim.scanfire.tools.ToolsScreen
 import com.ganim.scanfire.ui.common.appContainer
 import androidx.compose.material.icons.outlined.Tune
+import com.ganim.scanfire.ocr.OcrLanguagesScreen
 import com.ganim.scanfire.ocr.OcrScreen
 import com.ganim.scanfire.ocr.OcrViewModel
 import com.ganim.scanfire.document.PageAction
@@ -90,6 +91,7 @@ object Routes {
     const val CODES = "codes?scan={scan}"
     fun codes(scan: Boolean) = "codes?scan=$scan"
     const val IMPORT_REVIEW = "import-review"
+    const val OCR_LANGUAGES = "ocr-languages"
     const val SIGN = "sign/{pageId}"
     fun sign(pageId: Long) = "sign/$pageId"
     const val OCR = "ocr/{docId}/{pageId}"
@@ -184,7 +186,7 @@ fun ScanFireRoot(incoming: MutableStateFlow<Incoming?> = MutableStateFlow(null))
                         },
                     )
                 }
-                composable(Tab.Settings.route) { SettingsScreen() }
+                composable(Tab.Settings.route) { SettingsScreen(onManageLanguages = { nav.navigate(Routes.OCR_LANGUAGES) }) }
 
                 composable(Routes.DOC, arguments = listOf(navArgument("docId") { type = NavType.LongType })) { entry ->
                     DocumentRoute(entry.arguments!!.getLong("docId"), nav, capture)
@@ -216,6 +218,7 @@ fun ScanFireRoot(incoming: MutableStateFlow<Incoming?> = MutableStateFlow(null))
                         ),
                     )
                 }
+                composable(Routes.OCR_LANGUAGES) { OcrLanguagesScreen(onBack = { nav.popBackStack() }) }
                 composable(Routes.IMPORT_REVIEW) {
                     ImportReviewScreen(captureVm, onNewDocument = { nav.navigate(Routes.doc(it)) }, onLeave = { nav.popBackStack() })
                 }
@@ -232,9 +235,9 @@ fun ScanFireRoot(incoming: MutableStateFlow<Incoming?> = MutableStateFlow(null))
                     val docId = entry.arguments!!.getLong("docId")
                     val pageId = entry.arguments!!.getLong("pageId")
                     val vm = containerViewModel(key = "ocr-$docId-$pageId") {
-                        OcrViewModel(docId, pageId, it.library, it.pages, it.settings, it.ocr, it.translator, it.files)
+                        OcrViewModel(docId, pageId, it.library, it.pages, it.settings, it.ocr, it.translator, it.files, it.tessData)
                     }
-                    OcrScreen(vm, onBack = { nav.popBackStack() })
+                    OcrScreen(vm, onBack = { nav.popBackStack() }, onManageLanguages = { nav.navigate(Routes.OCR_LANGUAGES) })
                 }
             }
         }

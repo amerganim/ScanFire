@@ -45,7 +45,7 @@ import com.ganim.scanfire.BuildConfig
 import com.ganim.scanfire.data.Backup
 import com.ganim.scanfire.data.Settings
 import com.ganim.scanfire.imaging.PageFilter
-import com.ganim.scanfire.ocr.OcrScript
+import com.ganim.scanfire.ocr.OcrLanguage
 import com.ganim.scanfire.scan.findActivity
 import com.ganim.scanfire.tools.formatSize
 import com.ganim.scanfire.ui.BusyOverlay
@@ -62,7 +62,7 @@ private data class Choice(val key: String, val label: String)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen() {
+fun SettingsScreen(onManageLanguages: () -> Unit) {
     val container = appContainer()
     val repo = container.settings
     val settings by repo.settings.collectAsStateWithLifecycle(initialValue = Settings())
@@ -104,10 +104,16 @@ fun SettingsScreen() {
                 ChoiceRow("Filter for imported photos", PageFilter.of(settings.defaultFilter).label) {
                     picker = Triple("Default filter", filters, settings.defaultFilter to { k -> scope.launch { repo.setDefaultFilter(k) } })
                 }
-                val scripts = OcrScript.entries.map { Choice(it.key, it.label) }
-                ChoiceRow("Text recognition script", OcrScript.of(settings.ocrScript).label) {
-                    picker = Triple("OCR script", scripts, settings.ocrScript to { k -> scope.launch { repo.setOcrScript(k) } })
+                val installed by container.tessData.installed.collectAsStateWithLifecycle()
+                val languages = (OcrLanguage.mlKit + OcrLanguage.tesseract.filter { it.code in installed }).map { Choice(it.key, it.label) }
+                ChoiceRow("Text recognition language", OcrLanguage.of(settings.ocrScript).label) {
+                    picker = Triple("Text recognition language", languages, settings.ocrScript to { k -> scope.launch { repo.setOcrScript(k) } })
                 }
+                ListItem(
+                    headlineContent = { Text("Download more languages") },
+                    supportingContent = { Text("${OcrLanguage.tesseract.size} more, including Bengali, Arabic, Urdu, Tamil, Thai and Russian · ${installed.size} downloaded") },
+                    modifier = Modifier.clickable(onClick = onManageLanguages),
+                )
 
                 Header("PDF and export")
                 val sizes = listOf(Choice("a4", "A4"), Choice("letter", "Letter"), Choice("fit", "Fit to image"))

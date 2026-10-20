@@ -54,11 +54,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ganim.scanfire.export.Sharing
+import com.ganim.scanfire.ui.common.appContainer
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun OcrScreen(vm: OcrViewModel, onBack: () -> Unit) {
+fun OcrScreen(vm: OcrViewModel, onBack: () -> Unit, onManageLanguages: () -> Unit) {
     val state by vm.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -81,7 +82,19 @@ fun OcrScreen(vm: OcrViewModel, onBack: () -> Unit) {
             Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            ScriptPicker(state.script, enabled = !state.running, onPick = vm::setScript)
+            val installed by appContainer().tessData.installed.collectAsStateWithLifecycle()
+            LanguagePicker(state.language, installed, enabled = !state.running && !state.downloading, onPick = vm::setLanguage, onMore = onManageLanguages)
+
+            state.missing?.let { lang ->
+                Card(Modifier.fillMaxWidth()) {
+                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("${lang.label} needs a one-time download", style = MaterialTheme.typography.titleSmall)
+                        Text("The language model comes from the free Tesseract project. After that, reading ${lang.name} works offline.", style = MaterialTheme.typography.bodyMedium)
+                        if (state.downloading) LinearProgressIndicator(Modifier.fillMaxWidth())
+                        else Button(onClick = vm::downloadAndRun) { Text("Download and read") }
+                    }
+                }
+            }
 
             if (state.running) {
                 val (done, total) = state.progress
@@ -90,9 +103,9 @@ fun OcrScreen(vm: OcrViewModel, onBack: () -> Unit) {
             }
             state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
-            if (!state.running && state.error == null) {
+            if (!state.running && state.error == null && state.missing == null) {
                 if (state.text.isBlank()) {
-                    Text("No text found. Try another script, or a sharper scan.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("No text found. Try another language, or a sharper scan.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 if (state.singlePage) {
                     OutlinedTextField(
@@ -135,14 +148,22 @@ fun OcrScreen(vm: OcrViewModel, onBack: () -> Unit) {
 }
 
 @Composable
-private fun ScriptPicker(script: OcrScript, enabled: Boolean, onPick: (OcrScript) -> Unit) {
+private fun LanguagePicker(current: OcrLanguage, installed: Set<String>, enabled: Boolean, onPick: (OcrLanguage) -> Unit, onMore: () -> Unit) {
     var open by remember { mutableStateOf(false) }
     Box {
-        OutlinedButton(enabled = enabled, onClick = { open = true }) { Text("Script: ${script.label}", maxLines = 1, overflow = TextOverflow.Ellipsis) }
-        DropdownMenu(open, onDismissRequest = { open = false }) {
-            OcrScript.entries.forEach {
-                DropdownMenuItem(text = { Text(it.label) }, onClick = { open = false; if (it != script) onPick(it) })
+        OutlinedButton(enabled = enabled, onClick = { open = true }) { Text("Language: ${current.label}", maxLines = 1, overflow = TextOverflow.Ellipsis) }
+        DropdownMenu(open, onDismissRequest = { open = false }, modifier = Modifier.heightIn(max = 420.dp)) {
+            OcrLanguage.mlKit.forEach { lang ->
+                DropdownMenuItem(text = { Text(lang.label) }, onClick = { open = false; if (lang != current) onPick(lang) })
             }
+            OcrLanguage.tesseract.filter { it.code in installed }.forEach { lang ->
+                DropdownMenuItem(text = { Text(lang.label) }, onClick = { open = false; if (lang != current) onPick(lang) })
+            }
+            DropdownMenuItem(
+                text = { Text("More languages…", color = MaterialTheme.colorScheme.primary) },
+                leadingIcon = { Icon(Icons.Outlined.Translate, null, tint = MaterialTheme.colorScheme.primary) },
+                onClick = { open = false; onMore() },
+            )
         }
     }
 }
