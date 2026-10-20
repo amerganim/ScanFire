@@ -55,6 +55,7 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.androidx.exifinterface)
     implementation(libs.reorderable)
+    implementation(libs.pdfbox.android)
     implementation(libs.mlkit.document.scanner)
 
     implementation(libs.androidx.room.runtime)

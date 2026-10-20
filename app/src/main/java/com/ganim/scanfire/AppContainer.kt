@@ -6,6 +6,7 @@ import com.ganim.scanfire.data.LibraryRepository
 import com.ganim.scanfire.data.PageRepository
 import com.ganim.scanfire.data.SettingsRepository
 import com.ganim.scanfire.data.db.ScanFireDatabase
+import com.ganim.scanfire.export.Exporter
 
 /** Holds the app-wide singletons. */
 class AppContainer(val context: Context) {
@@ -14,4 +15,5 @@ class AppContainer(val context: Context) {
     val settings: SettingsRepository by lazy { SettingsRepository(context) }
     val library: LibraryRepository by lazy { LibraryRepository(database, files) }
     val pages: PageRepository by lazy { PageRepository(context, database, files) }
+    val exporter: Exporter by lazy { Exporter(files) }
 }

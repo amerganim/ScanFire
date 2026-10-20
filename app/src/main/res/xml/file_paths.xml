@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Only the export cache is shareable; page images in files/docs never leave the app directly. -->
+<paths>
+    <cache-path name="exports" path="exports/" />
+</paths>

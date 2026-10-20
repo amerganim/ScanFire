@@ -70,6 +70,7 @@ fun DocumentScreen(
     onImportMore: () -> Unit,
     bottomActions: List<DocumentAction> = emptyList(),
     menuActions: List<DocumentAction> = emptyList(),
+    selectionActions: List<DocumentAction> = emptyList(),
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     var renaming by remember { mutableStateOf(false) }
@@ -89,6 +90,7 @@ fun DocumentScreen(
                     navigationIcon = { IconButton(onClick = vm::clearSelection) { Icon(Icons.Filled.Close, "Clear selection") } },
                     actions = {
                         IconButton(onClick = vm::selectAll) { Icon(Icons.Outlined.SelectAll, "Select all") }
+                        selectionActions.forEach { IconButton(onClick = it.onClick) { Icon(it.icon, it.label) } }
                         IconButton(onClick = { confirmDeletePages = true }) { Icon(Icons.Outlined.Delete, "Delete pages") }
                     },
                 )

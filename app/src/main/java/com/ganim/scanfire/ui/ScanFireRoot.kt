@@ -37,10 +37,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import androidx.compose.material.icons.outlined.SwapVert
 import androidx.compose.material.icons.outlined.Tune
-import com.ganim.scanfire.document.DocumentAction
-import com.ganim.scanfire.document.DocumentScreen
 import com.ganim.scanfire.document.PageAction
 import com.ganim.scanfire.edit.PageEditScreen
 import com.ganim.scanfire.edit.PageEditViewModel
@@ -119,18 +116,7 @@ fun ScanFireRoot() {
                 composable(Tab.Settings.route) { Placeholder("Settings") }
 
                 composable(Routes.DOC, arguments = listOf(navArgument("docId") { type = NavType.LongType })) { entry ->
-                    val docId = entry.arguments!!.getLong("docId")
-                    val vm = containerViewModel(key = "doc-$docId") { DocumentViewModel(docId, it.library, it.pages) }
-                    DocumentScreen(
-                        vm = vm,
-                        onBack = { nav.popBackStack() },
-                        onOpenPage = { nav.navigate(Routes.page(docId, it)) },
-                        onScanMore = { capture.scan(CaptureTarget.AddTo(docId)) },
-                        onImportMore = { capture.pickImages(CaptureTarget.AddTo(docId)) },
-                        menuActions = listOf(
-                            DocumentAction("Reorder pages", Icons.Outlined.SwapVert) { nav.navigate(Routes.reorder(docId)) },
-                        ),
-                    )
+                    DocumentRoute(entry.arguments!!.getLong("docId"), nav, capture)
                 }
                 composable(Routes.REORDER, arguments = listOf(navArgument("docId") { type = NavType.LongType })) { entry ->
                     val docId = entry.arguments!!.getLong("docId")
