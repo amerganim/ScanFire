@@ -1,0 +1,14 @@
+# Normalise to LF in the repository; check out platform-native where it matters.
+* text=auto eol=lf
+
+# Must stay LF or the script will not run on Linux/macOS or in CI.
+gradlew text eol=lf
+
+# Windows batch files need CRLF.
+*.bat text eol=crlf
+
+# Never touch these.
+*.jar binary
+*.bin binary
+*.png binary
+*.webp binary

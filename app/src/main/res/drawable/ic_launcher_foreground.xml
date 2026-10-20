@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A page with a folded corner and a flame cut out of it. 108dp canvas, art inside the 66dp safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M36,26 L62,26 L74,38 L74,80 Q74,82 72,82 L36,82 Q34,82 34,80 L34,28 Q34,26 36,26 Z" />
+    <path
+        android:fillColor="#FFD7C7"
+        android:pathData="M62,26 L62,36 Q62,38 64,38 L74,38 Z" />
+    <path
+        android:fillColor="#E8461E"
+        android:pathData="M54,44 C58,50 64,54 64,62 C64,69 59,74 54,74 C49,74 44,69 44,63 C44,58 47,55 49,52 C49,56 51,58 53,58 C51,52 52,48 54,44 Z" />
+    <path
+        android:fillColor="#FFB020"
+        android:pathData="M54,60 C56,63 58,65 58,68 C58,71 56,73 54,73 C52,73 50,71 50,68 C50,66 52,63 54,60 Z" />
+</vector>
