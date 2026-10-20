@@ -20,6 +20,7 @@ import com.ganim.scanfire.document.DocumentViewModel
 import com.ganim.scanfire.export.ExportEffects
 import com.ganim.scanfire.export.ExportSheet
 import com.ganim.scanfire.export.ExportViewModel
+import com.ganim.scanfire.scan.CaptureTarget
 import com.ganim.scanfire.ui.common.containerViewModel
 
 /** The document screen plus everything it launches: capture, export, and per-phase tools. */

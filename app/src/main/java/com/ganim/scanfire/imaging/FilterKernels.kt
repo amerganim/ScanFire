@@ -16,7 +16,7 @@ object FilterKernels {
      * Runs [work] over rows [0, rows) split into bands, one per core. Bands only write their own
      * rows, so no locking is needed.
      */
-    private fun inBands(rows: Int, work: (Int, Int) -> Unit) {
+    internal fun inBands(rows: Int, work: (Int, Int) -> Unit) {
         val cores = Runtime.getRuntime().availableProcessors().coerceIn(1, 8)
         if (cores == 1 || rows < 256) { work(0, rows); return }
         val band = (rows + cores - 1) / cores

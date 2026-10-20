@@ -65,7 +65,9 @@ import com.ganim.scanfire.edit.ReorderPagesScreen
 import com.ganim.scanfire.document.DocumentViewModel
 import com.ganim.scanfire.document.PageViewerScreen
 import com.ganim.scanfire.library.LibraryScreen
+import com.ganim.scanfire.scan.CaptureTarget
 import com.ganim.scanfire.scan.CaptureViewModel
+import com.ganim.scanfire.scan.ImportReviewScreen
 import com.ganim.scanfire.scan.rememberDocumentScanner
 import com.ganim.scanfire.scan.rememberImagePicker
 import com.ganim.scanfire.ui.common.containerViewModel
@@ -87,17 +89,12 @@ object Routes {
     fun reorder(docId: Long) = "doc/$docId/reorder"
     const val CODES = "codes?scan={scan}"
     fun codes(scan: Boolean) = "codes?scan=$scan"
+    const val IMPORT_REVIEW = "import-review"
     const val SIGN = "sign/{pageId}"
     fun sign(pageId: Long) = "sign/$pageId"
     const val OCR = "ocr/{docId}/{pageId}"
     /** [pageId] 0 means every page of the document. */
     fun ocr(docId: Long, pageId: Long = 0) = "ocr/$docId/$pageId"
-}
-
-/** Where captured images go: a new document in a folder, or the end of an existing document. */
-sealed interface CaptureTarget {
-    data class NewDocument(val folderId: Long?) : CaptureTarget
-    data class AddTo(val docId: Long) : CaptureTarget
 }
 
 /** Capture entry points shared by every screen. */
@@ -114,15 +111,14 @@ fun ScanFireRoot(incoming: MutableStateFlow<Incoming?> = MutableStateFlow(null))
     val busy by captureVm.busy.collectAsStateWithLifecycle()
     var target by remember { mutableStateOf<CaptureTarget>(CaptureTarget.NewDocument(null)) }
 
-    fun deliver(uris: List<android.net.Uri>, fromScanner: Boolean) {
+    // Scanner pages are already cropped and enhanced; photos go through page finding and review first.
+    val scanner = rememberDocumentScanner { uris ->
         when (val t = target) {
-            is CaptureTarget.NewDocument -> captureVm.newDocument(t.folderId, uris, fromScanner) { nav.navigate(Routes.doc(it)) }
-            is CaptureTarget.AddTo -> captureVm.addToDocument(t.docId, uris, fromScanner)
+            is CaptureTarget.NewDocument -> captureVm.newDocument(t.folderId, uris, fromScanner = true) { nav.navigate(Routes.doc(it)) }
+            is CaptureTarget.AddTo -> captureVm.addToDocument(t.docId, uris, fromScanner = true)
         }
     }
-
-    val scanner = rememberDocumentScanner { deliver(it, fromScanner = true) }
-    val picker = rememberImagePicker { deliver(it, fromScanner = false) }
+    val picker = rememberImagePicker { uris -> captureVm.prepareImport(target, uris) { nav.navigate(Routes.IMPORT_REVIEW) } }
     // Special-purpose scanners for the Tools tab.
     val idScanner = rememberDocumentScanner(pageLimit = 2) { uris -> captureVm.idCard(uris) { nav.navigate(Routes.doc(it)) } }
     val bookScanner = rememberDocumentScanner { uris -> captureVm.book(uris) { nav.navigate(Routes.doc(it)) } }
@@ -149,7 +145,7 @@ fun ScanFireRoot(incoming: MutableStateFlow<Incoming?> = MutableStateFlow(null))
         val item = pending ?: return@LaunchedEffect
         incoming.value = null
         when (item) {
-            is Incoming.Images -> captureVm.newDocument(null, item.uris, fromScanner = false) { nav.navigate(Routes.doc(it)) }
+            is Incoming.Images -> captureVm.prepareImport(CaptureTarget.NewDocument(null), item.uris) { nav.navigate(Routes.IMPORT_REVIEW) }
             is Incoming.Pdf -> captureVm.importPdf(
                 item.uri,
                 onDone = { nav.navigate(Routes.doc(it)) },
@@ -220,6 +216,9 @@ fun ScanFireRoot(incoming: MutableStateFlow<Incoming?> = MutableStateFlow(null))
                         ),
                     )
                 }
+                composable(Routes.IMPORT_REVIEW) {
+                    ImportReviewScreen(captureVm, onNewDocument = { nav.navigate(Routes.doc(it)) }, onLeave = { nav.popBackStack() })
+                }
                 composable(Routes.CODES, arguments = listOf(navArgument("scan") { type = NavType.BoolType; defaultValue = false })) { entry ->
                     CodesScreen(onBack = { nav.popBackStack() }, scanOnOpen = entry.arguments!!.getBoolean("scan"))
                 }
@@ -239,7 +238,7 @@ fun ScanFireRoot(incoming: MutableStateFlow<Incoming?> = MutableStateFlow(null))
                 }
             }
         }
-        if (busy) BusyOverlay("Adding pages…")
+        busy?.let { BusyOverlay(it) }
     }
 }
 
