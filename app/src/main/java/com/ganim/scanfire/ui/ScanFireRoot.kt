@@ -42,6 +42,12 @@ import androidx.compose.material.icons.outlined.Draw
 import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.ui.platform.LocalContext
 import com.ganim.scanfire.edit.SignatureScreen
+import androidx.compose.material.icons.automirrored.outlined.MenuBook
+import androidx.compose.material.icons.outlined.Badge
+import androidx.compose.material.icons.outlined.DocumentScanner
+import androidx.compose.material.icons.outlined.QrCodeScanner
+import com.ganim.scanfire.qr.CodesScreen
+import com.ganim.scanfire.tools.ToolTile
 import com.ganim.scanfire.tools.ToolsScreen
 import com.ganim.scanfire.ui.common.appContainer
 import androidx.compose.material.icons.outlined.Tune
@@ -74,6 +80,8 @@ object Routes {
     fun edit(pageId: Long) = "edit/$pageId"
     const val REORDER = "doc/{docId}/reorder"
     fun reorder(docId: Long) = "doc/$docId/reorder"
+    const val CODES = "codes?scan={scan}"
+    fun codes(scan: Boolean) = "codes?scan=$scan"
     const val SIGN = "sign/{pageId}"
     fun sign(pageId: Long) = "sign/$pageId"
     const val OCR = "ocr/{docId}/{pageId}"
@@ -97,7 +105,7 @@ fun ScanFireRoot() {
     val current = backStack?.destination
     val onTab = Tab.entries.any { tab -> current?.hierarchy?.any { it.route == tab.route } == true }
 
-    val captureVm = containerViewModel { CaptureViewModel(it.library, it.pages, it.settings, it.pdfTools) }
+    val captureVm = containerViewModel { CaptureViewModel(it.context, it.library, it.pages, it.settings, it.pdfTools) }
     val busy by captureVm.busy.collectAsStateWithLifecycle()
     var target by remember { mutableStateOf<CaptureTarget>(CaptureTarget.NewDocument(null)) }
 
@@ -110,6 +118,21 @@ fun ScanFireRoot() {
 
     val scanner = rememberDocumentScanner { deliver(it, fromScanner = true) }
     val picker = rememberImagePicker { deliver(it, fromScanner = false) }
+    // Special-purpose scanners for the Tools tab.
+    val idScanner = rememberDocumentScanner(pageLimit = 2) { uris -> captureVm.idCard(uris) { nav.navigate(Routes.doc(it)) } }
+    val bookScanner = rememberDocumentScanner { uris -> captureVm.book(uris) { nav.navigate(Routes.doc(it)) } }
+    val textScanner = rememberDocumentScanner(pageLimit = 1) { uris ->
+        captureVm.newDocument(null, uris, fromScanner = true) { nav.navigate(Routes.ocr(it)) }
+    }
+    val scanTools = remember(idScanner, bookScanner, textScanner) {
+        listOf(
+            ToolTile("QR & barcodes", "Scan any QR code or barcode; history stays on the phone", Icons.Outlined.QrCodeScanner) { nav.navigate(Routes.codes(scan = true)) },
+            ToolTile("ID card", "Scan the front and back; both go on one page", Icons.Outlined.Badge, idScanner),
+            ToolTile("Extract text", "Scan one page and get its text right away", Icons.Outlined.DocumentScanner, textScanner),
+            ToolTile("Book", "Scan open-book spreads; each is split into two pages", Icons.AutoMirrored.Outlined.MenuBook, bookScanner),
+        )
+    }
+
     val capture = remember(scanner, picker) {
         Capture(scan = { target = it; scanner() }, pickImages = { target = it; picker() })
     }
@@ -130,7 +153,7 @@ fun ScanFireRoot() {
                 composable(Tab.Tools.route) {
                     val context = LocalContext.current
                     ToolsScreen(
-                        scanTools = emptyList(),
+                        scanTools = scanTools,
                         onImportPdf = { file, name, password ->
                             captureVm.newDocumentFromPdf(
                                 null, file, name, password,
@@ -172,7 +195,10 @@ fun ScanFireRoot() {
                         ),
                     )
                 }
-                composable(Routes.SIGN, arguments = listOf(navArgument("pageId") { type = NavType.LongType })) { entry ->
+                composable(Routes.CODES, arguments = listOf(navArgument("scan") { type = NavType.BoolType; defaultValue = false })) { entry ->
+                    CodesScreen(onBack = { nav.popBackStack() }, scanOnOpen = entry.arguments!!.getBoolean("scan"))
+                }
+                composable(Routes.SIGN,arguments = listOf(navArgument("pageId") { type = NavType.LongType })) { entry ->
                     SignatureScreen(entry.arguments!!.getLong("pageId"), appContainer().pages, onClose = { nav.popBackStack() })
                 }
                 composable(

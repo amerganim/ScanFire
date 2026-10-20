@@ -65,6 +65,7 @@ dependencies {
     implementation(libs.mlkit.language.id)
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.mlkit.document.scanner)
+    implementation(libs.mlkit.code.scanner)
 
     implementation(libs.androidx.room.runtime)
     implementation(libs.androidx.room.ktx)

@@ -1,6 +1,11 @@
 package com.ganim.scanfire.scan
 
+import android.content.Context
 import android.net.Uri
+import com.ganim.scanfire.imaging.Bitmaps
+import com.ganim.scanfire.imaging.PageComposer
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.ganim.scanfire.data.LibraryRepository
@@ -19,6 +24,7 @@ import kotlinx.coroutines.launch
  * scanned images into a document, then reports where they went.
  */
 class CaptureViewModel(
+    private val context: Context,
     private val library: LibraryRepository,
     private val pages: PageRepository,
     private val settings: SettingsRepository,
@@ -55,6 +61,24 @@ class CaptureViewModel(
             if (e is CancellationException) throw e
             onError(e)
         }
+    }
+
+    /** Both sides of a card on one sheet, as a new document. */
+    fun idCard(uris: List<Uri>, onDone: (Long) -> Unit) = run {
+        val sides = withContext(Dispatchers.IO) { uris.take(2).mapNotNull { Bitmaps.decode(context.contentResolver, it, maxEdge = 1600) } }
+        if (sides.isEmpty()) return@run
+        val docId = library.createDocument(name = "ID card " + LibraryRepository.defaultName().removePrefix("Scan "))
+        pages.addBitmaps(docId, sequenceOf(PageComposer.idCardSheet(sides)))
+        onDone(docId)
+    }
+
+    /** Each captured spread becomes two pages. */
+    fun book(uris: List<Uri>, onDone: (Long) -> Unit) = run {
+        val docId = library.createDocument(name = "Book " + LibraryRepository.defaultName().removePrefix("Scan "))
+        val halves = uris.asSequence()
+            .mapNotNull { Bitmaps.decode(context.contentResolver, it) }
+            .flatMap { PageComposer.splitSpread(it).asSequence() }
+        if (pages.addBitmaps(docId, halves) == 0) library.deleteDocument(docId) else onDone(docId)
     }
 
     /** Merges library documents into a new one, in the order given. */
