@@ -1,8 +1,21 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.ksp)
 }
+
+/**
+ * Release signing comes from local.properties (gitignored):
+ *   release.storeFile, release.storePassword, release.keyAlias, release.keyPassword
+ * Without them a release build is signed with the debug key, which is fine for trying R8 output
+ * on a phone but can't be uploaded to Play or upgraded by a properly signed build later.
+ */
+val localProperties = Properties().apply {
+    rootProject.file("local.properties").takeIf { it.exists() }?.inputStream()?.use { load(it) }
+}
+fun local(name: String): String? = localProperties.getProperty(name)?.trim()?.takeIf { it.isNotEmpty() }
 
 android {
     namespace = "com.ganim.scanfire"
@@ -14,7 +27,19 @@ android {
         minSdk = 24
         targetSdk = 36
         versionCode = 1
-        versionName = "0.1.0"
+        versionName = "1.0.0"
+    }
+
+    signingConfigs {
+        val storeFile = local("release.storeFile")
+        if (storeFile != null) {
+            create("release") {
+                this.storeFile = file(storeFile)
+                storePassword = local("release.storePassword")
+                keyAlias = local("release.keyAlias")
+                keyPassword = local("release.keyPassword")
+            }
+        }
     }
 
     buildTypes {
@@ -22,6 +47,28 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            signingConfig = signingConfigs.findByName("release") ?: signingConfigs.getByName("debug")
+        }
+    }
+
+    packaging {
+        resources {
+            // BouncyCastle (via PdfBox) ships ~4 MB of post-quantum parameter tables; PDF AES encryption never uses them.
+            excludes += "org/bouncycastle/pqc/**"
+            excludes += "org/bouncycastle/x509/**"
+        }
+    }
+
+    // ML Kit translation's native library is ~17 MB per ABI. Play delivers one ABI from the App Bundle
+    // automatically; for APKs on GitHub, build with -PsplitAbi to get one APK per CPU type.
+    if (providers.gradleProperty("splitAbi").isPresent) {
+        splits {
+            abi {
+                isEnable = true
+                reset()
+                include("arm64-v8a", "armeabi-v7a", "x86_64")
+                isUniversalApk = false
+            }
         }
     }
 

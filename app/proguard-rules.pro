@@ -1,1 +1,8 @@
-# ScanFire release rules. Library-specific keeps are added alongside the libraries that need them.
+# ScanFire release rules.
+
+# PdfBox-Android: optional JPEG2000 codec isn't shipped, and fonts/encodings are loaded reflectively.
+-dontwarn com.gemalto.jp2.JP2Decoder
+-dontwarn com.gemalto.jp2.JP2Encoder
+-keep class com.tom_roush.pdfbox.** { *; }
+-keep class com.tom_roush.fontbox.** { *; }
+-keep class com.tom_roush.harmony.** { *; }

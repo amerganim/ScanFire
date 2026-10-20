@@ -28,6 +28,19 @@ Each phase ends with a build, a device check on the Galaxy A15, and a commit pus
 | 8 | Security and settings: biometric/PIN app lock, settings, backup and restore (ZIP), open-with / share-to intents, app shortcuts | Lock works; restore round-trips |
 | 9 | Release: R8, icon, about/licenses, README, release APK on GitHub | Signed-able release builds clean |
 
+## Status (2026-10-20)
+
+All phases 0–9 are built, unit-tested (22 JVM tests) and pushed, and CI passes.
+Device-checked on the Galaxy A15: phases 0–4 (library, gallery import, ML Kit scanner,
+editor, filters, crop, reorder, PDF/long-image export, share sheet, print). Phases 5–9 (OCR,
+translate, PDF tools, signature, QR, ID card, app lock, backup/restore, share-in) still need a
+pass on the device; the phone disconnected partway through.
+
+Deviations from the plan:
+- OCR uses the Play-services ML Kit variants instead of bundled models, to keep the APK small.
+- The library's own code scanner (Play services) replaced a CameraX-based QR screen.
+- Per-ABI APKs (`-PsplitAbi`): ML Kit translation's native library is ~17 MB per CPU type.
+
 ## Deliberately left out
 
 These need servers (cost money) or exist only to make money: account and cloud sync, teams,
