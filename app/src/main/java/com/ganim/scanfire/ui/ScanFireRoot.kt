@@ -37,7 +37,14 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.compose.material.icons.outlined.SwapVert
+import androidx.compose.material.icons.outlined.Tune
+import com.ganim.scanfire.document.DocumentAction
 import com.ganim.scanfire.document.DocumentScreen
+import com.ganim.scanfire.document.PageAction
+import com.ganim.scanfire.edit.PageEditScreen
+import com.ganim.scanfire.edit.PageEditViewModel
+import com.ganim.scanfire.edit.ReorderPagesScreen
 import com.ganim.scanfire.document.DocumentViewModel
 import com.ganim.scanfire.document.PageViewerScreen
 import com.ganim.scanfire.library.LibraryScreen
@@ -57,6 +64,10 @@ object Routes {
     const val PAGE = "doc/{docId}/page/{index}"
     fun doc(id: Long) = "doc/$id"
     fun page(docId: Long, index: Int) = "doc/$docId/page/$index"
+    const val EDIT = "edit/{pageId}"
+    fun edit(pageId: Long) = "edit/$pageId"
+    const val REORDER = "doc/{docId}/reorder"
+    fun reorder(docId: Long) = "doc/$docId/reorder"
 }
 
 /** Where captured images go: a new document in a folder, or the end of an existing document. */
@@ -116,7 +127,20 @@ fun ScanFireRoot() {
                         onOpenPage = { nav.navigate(Routes.page(docId, it)) },
                         onScanMore = { capture.scan(CaptureTarget.AddTo(docId)) },
                         onImportMore = { capture.pickImages(CaptureTarget.AddTo(docId)) },
+                        menuActions = listOf(
+                            DocumentAction("Reorder pages", Icons.Outlined.SwapVert) { nav.navigate(Routes.reorder(docId)) },
+                        ),
                     )
+                }
+                composable(Routes.REORDER, arguments = listOf(navArgument("docId") { type = NavType.LongType })) { entry ->
+                    val docId = entry.arguments!!.getLong("docId")
+                    val vm = containerViewModel(key = "doc-$docId") { DocumentViewModel(docId, it.library, it.pages) }
+                    ReorderPagesScreen(vm, onClose = { nav.popBackStack() })
+                }
+                composable(Routes.EDIT, arguments = listOf(navArgument("pageId") { type = NavType.LongType })) { entry ->
+                    val pageId = entry.arguments!!.getLong("pageId")
+                    val vm = containerViewModel(key = "edit-$pageId") { PageEditViewModel(pageId, it.pages) }
+                    PageEditScreen(vm, onClose = { nav.popBackStack() })
                 }
                 composable(
                     Routes.PAGE,
@@ -124,7 +148,14 @@ fun ScanFireRoot() {
                 ) { entry ->
                     val docId = entry.arguments!!.getLong("docId")
                     val vm = containerViewModel(key = "doc-$docId") { DocumentViewModel(docId, it.library, it.pages) }
-                    PageViewerScreen(vm = vm, startIndex = entry.arguments!!.getInt("index"), onBack = { nav.popBackStack() })
+                    PageViewerScreen(
+                        vm = vm,
+                        startIndex = entry.arguments!!.getInt("index"),
+                        onBack = { nav.popBackStack() },
+                        actions = listOf(
+                            PageAction("Edit", Icons.Outlined.Tune) { nav.navigate(Routes.edit(it.id)) },
+                        ),
+                    )
                 }
             }
         }
