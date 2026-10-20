@@ -13,10 +13,12 @@ import com.ganim.scanfire.data.PageRepository
 import com.ganim.scanfire.data.SettingsRepository
 import com.ganim.scanfire.pdf.PdfTools
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.channels.Channel
 import java.io.File
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 
 /**
@@ -33,19 +35,29 @@ class CaptureViewModel(
     private val _busy = MutableStateFlow(false)
     val busy: StateFlow<Boolean> = _busy
 
+    /** One-off user messages, e.g. when none of the picked images could be read. */
+    private val _messages = Channel<String>(Channel.BUFFERED)
+    val messages = _messages.receiveAsFlow()
+
     /** [fromScanner] pages already carry the scanner's own filter, so the default filter is not stacked on top. */
     fun newDocument(folderId: Long?, uris: List<Uri>, fromScanner: Boolean, onDone: (Long) -> Unit) = run {
         val docId = library.createDocument(folderId = folderId)
         val added = pages.addImages(docId, uris, filterFor(fromScanner))
         if (added == 0) {
             library.deleteDocument(docId)
+            _messages.send(UNREADABLE)
         } else {
+            if (added < uris.size) _messages.send("${uris.size - added} of ${uris.size} images couldn't be read")
             onDone(docId)
         }
     }
 
     fun addToDocument(docId: Long, uris: List<Uri>, fromScanner: Boolean) = run {
-        pages.addImages(docId, uris, filterFor(fromScanner))
+        if (pages.addImages(docId, uris, filterFor(fromScanner)) == 0) _messages.send(UNREADABLE)
+    }
+
+    private companion object {
+        const val UNREADABLE = "Couldn't read the selected images"
     }
 
     /** Turns a PDF into a ScanFire document, one page image per PDF page at ~200 dpi. */

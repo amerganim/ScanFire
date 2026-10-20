@@ -7,6 +7,8 @@ import com.google.mlkit.nl.translate.TranslateLanguage
 import com.google.mlkit.nl.translate.TranslateRemoteModel
 import com.google.mlkit.nl.translate.Translation
 import com.google.mlkit.nl.translate.TranslatorOptions
+import com.google.mlkit.common.MlKitException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.tasks.await
 import java.util.Locale
 
@@ -26,9 +28,18 @@ class Translator {
     /** BCP-47 code of the text's language when ML Kit can translate from it, else null. */
     suspend fun detect(text: String): String? {
         val client = LanguageIdentification.getClient()
-        return try {
-            val code = client.identifyLanguage(text.take(2000)).await()
-            TranslateLanguage.fromLanguageTag(code)
+        val sample = text.take(2000)
+        try {
+            // On first use Play services may still be fetching the language-ID module; wait for it rather than failing.
+            repeat(9) {
+                try {
+                    return TranslateLanguage.fromLanguageTag(client.identifyLanguage(sample).await())
+                } catch (e: MlKitException) {
+                    if (e.errorCode != MlKitException.UNAVAILABLE && e.message?.contains("downloaded", ignoreCase = true) != true) throw e
+                    delay(3_000)
+                }
+            }
+            return TranslateLanguage.fromLanguageTag(client.identifyLanguage(sample).await())
         } finally {
             client.close()
         }

@@ -13,7 +13,9 @@ class FileStore(context: Context) {
     val exportDir: File = File(context.cacheDir, "exports").apply { mkdirs() }
     val tempDir: File = File(context.cacheDir, "tmp").apply { mkdirs() }
 
-    fun docDir(docId: Long): File = File(root, docId.toString()).apply { mkdirs() }
+    /** Path only; writers create it (Bitmaps.save and File.copyTo make parent folders). Creating it here
+     *  would resurrect the folder of a just-deleted document whenever a thumbnail asks for a path. */
+    fun docDir(docId: Long): File = File(root, docId.toString())
 
     fun file(docId: Long, name: String): File = File(docDir(docId), name)
 

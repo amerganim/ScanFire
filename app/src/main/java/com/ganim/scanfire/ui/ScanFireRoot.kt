@@ -143,6 +143,7 @@ fun ScanFireRoot(incoming: MutableStateFlow<Incoming?> = MutableStateFlow(null))
     }
 
     val context = LocalContext.current
+    LaunchedEffect(captureVm) { captureVm.messages.collect { Toast.makeText(context, it, Toast.LENGTH_LONG).show() } }
     val pending by incoming.collectAsStateWithLifecycle()
     LaunchedEffect(pending) {
         val item = pending ?: return@LaunchedEffect
