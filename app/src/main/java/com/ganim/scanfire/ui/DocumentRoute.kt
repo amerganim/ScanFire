@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.IosShare
 import androidx.compose.material.icons.outlined.SwapVert
+import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -39,6 +40,7 @@ fun DocumentRoute(docId: Long, nav: NavHostController, capture: Capture) {
             onScanMore = { capture.scan(CaptureTarget.AddTo(docId)) },
             onImportMore = { capture.pickImages(CaptureTarget.AddTo(docId)) },
             bottomActions = listOf(
+                DocumentAction("Text", Icons.Outlined.TextFields) { nav.navigate(Routes.ocr(docId)) },
                 DocumentAction("Export", Icons.Outlined.IosShare) { exportPages = LongArray(0) },
             ),
             menuActions = listOf(

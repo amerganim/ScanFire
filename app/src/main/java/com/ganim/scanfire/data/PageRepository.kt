@@ -69,6 +69,8 @@ class PageRepository(
                 rotation = ((newRotation % 360) + 360) % 360,
                 cropLeft = newCrop.left, cropTop = newCrop.top, cropRight = newCrop.right, cropBottom = newCrop.bottom,
                 filter = newFilter,
+                // A new crop or rotation can change what text is on the page; filters don't.
+                ocrText = if (newRotation == page.rotation && newCrop == RectF(page.cropLeft, page.cropTop, page.cropRight, page.cropBottom)) page.ocrText else null,
                 updatedAt = System.currentTimeMillis(),
             ),
         )

@@ -22,8 +22,9 @@ reorderable = "3.1.0"
 docScanner = "16.0.0"
 codeScanner = "16.1.0"
 textRecognition = "16.0.1"
+textRecognitionLatin = "19.0.1"
 translate = "17.0.3"
-languageId = "17.0.6"
+languageId = "17.0.0"
 pdfbox = "2.0.27.0"
 biometric = "1.1.0"
 appcompat = "1.7.1"
@@ -46,13 +47,14 @@ reorderable = { module = "sh.calvin.reorderable:reorderable", version.ref = "reo
 
 mlkit-document-scanner = { module = "com.google.android.gms:play-services-mlkit-document-scanner", version.ref = "docScanner" }
 mlkit-code-scanner = { module = "com.google.android.gms:play-services-code-scanner", version.ref = "codeScanner" }
-mlkit-text-latin = { module = "com.google.mlkit:text-recognition", version.ref = "textRecognition" }
-mlkit-text-devanagari = { module = "com.google.mlkit:text-recognition-devanagari", version.ref = "textRecognition" }
-mlkit-text-chinese = { module = "com.google.mlkit:text-recognition-chinese", version.ref = "textRecognition" }
-mlkit-text-japanese = { module = "com.google.mlkit:text-recognition-japanese", version.ref = "textRecognition" }
-mlkit-text-korean = { module = "com.google.mlkit:text-recognition-korean", version.ref = "textRecognition" }
+# OCR through Play services: models are fetched by Play services, not bundled, so the APK stays small.
+mlkit-text-latin = { module = "com.google.android.gms:play-services-mlkit-text-recognition", version.ref = "textRecognitionLatin" }
+mlkit-text-devanagari = { module = "com.google.android.gms:play-services-mlkit-text-recognition-devanagari", version.ref = "textRecognition" }
+mlkit-text-chinese = { module = "com.google.android.gms:play-services-mlkit-text-recognition-chinese", version.ref = "textRecognition" }
+mlkit-text-japanese = { module = "com.google.android.gms:play-services-mlkit-text-recognition-japanese", version.ref = "textRecognition" }
+mlkit-text-korean = { module = "com.google.android.gms:play-services-mlkit-text-recognition-korean", version.ref = "textRecognition" }
 mlkit-translate = { module = "com.google.mlkit:translate", version.ref = "translate" }
-mlkit-language-id = { module = "com.google.mlkit:language-id", version.ref = "languageId" }
+mlkit-language-id = { module = "com.google.android.gms:play-services-mlkit-language-id", version.ref = "languageId" }
 pdfbox-android = { module = "com.tom-roush:pdfbox-android", version.ref = "pdfbox" }
 
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
@@ -66,7 +68,8 @@ compose-material-icons-extended = { module = "androidx.compose.material:material
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit" }
 junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher", version.ref = "junit" }
 kotest-assertions = { module = "io.kotest:kotest-assertions-core-jvm", version.ref = "kotest" }
-kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
+kotlinx-coroutines-play-services = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "coroutines" }
+kotlinx-coroutines-test ={ module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

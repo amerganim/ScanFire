@@ -7,6 +7,8 @@ import com.ganim.scanfire.data.PageRepository
 import com.ganim.scanfire.data.SettingsRepository
 import com.ganim.scanfire.data.db.ScanFireDatabase
 import com.ganim.scanfire.export.Exporter
+import com.ganim.scanfire.ocr.OcrEngine
+import com.ganim.scanfire.ocr.Translator
 
 /** Holds the app-wide singletons. */
 class AppContainer(val context: Context) {
@@ -16,4 +18,6 @@ class AppContainer(val context: Context) {
     val library: LibraryRepository by lazy { LibraryRepository(database, files) }
     val pages: PageRepository by lazy { PageRepository(context, database, files) }
     val exporter: Exporter by lazy { Exporter(files) }
+    val ocr: OcrEngine by lazy { OcrEngine() }
+    val translator: Translator by lazy { Translator() }
 }

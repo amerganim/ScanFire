@@ -37,7 +37,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.material.icons.outlined.Tune
+import com.ganim.scanfire.ocr.OcrScreen
+import com.ganim.scanfire.ocr.OcrViewModel
 import com.ganim.scanfire.document.PageAction
 import com.ganim.scanfire.edit.PageEditScreen
 import com.ganim.scanfire.edit.PageEditViewModel
@@ -65,6 +68,9 @@ object Routes {
     fun edit(pageId: Long) = "edit/$pageId"
     const val REORDER = "doc/{docId}/reorder"
     fun reorder(docId: Long) = "doc/$docId/reorder"
+    const val OCR = "ocr/{docId}/{pageId}"
+    /** [pageId] 0 means every page of the document. */
+    fun ocr(docId: Long, pageId: Long = 0) = "ocr/$docId/$pageId"
 }
 
 /** Where captured images go: a new document in a folder, or the end of an existing document. */
@@ -140,8 +146,20 @@ fun ScanFireRoot() {
                         onBack = { nav.popBackStack() },
                         actions = listOf(
                             PageAction("Edit", Icons.Outlined.Tune) { nav.navigate(Routes.edit(it.id)) },
+                            PageAction("Text", Icons.Outlined.TextFields) { nav.navigate(Routes.ocr(docId, it.id)) },
                         ),
                     )
+                }
+                composable(
+                    Routes.OCR,
+                    arguments = listOf(navArgument("docId") { type = NavType.LongType }, navArgument("pageId") { type = NavType.LongType }),
+                ) { entry ->
+                    val docId = entry.arguments!!.getLong("docId")
+                    val pageId = entry.arguments!!.getLong("pageId")
+                    val vm = containerViewModel(key = "ocr-$docId-$pageId") {
+                        OcrViewModel(docId, pageId, it.library, it.pages, it.settings, it.ocr, it.translator, it.files)
+                    }
+                    OcrScreen(vm, onBack = { nav.popBackStack() })
                 }
             }
         }
