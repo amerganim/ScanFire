@@ -38,6 +38,11 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import android.widget.Toast
+import androidx.compose.runtime.LaunchedEffect
+import com.ganim.scanfire.Incoming
+import com.ganim.scanfire.pdf.PdfPasswordRequired
+import com.ganim.scanfire.settings.SettingsScreen
+import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.compose.material.icons.outlined.Draw
 import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.ui.platform.LocalContext
@@ -99,7 +104,7 @@ sealed interface CaptureTarget {
 class Capture(val scan: (CaptureTarget) -> Unit, val pickImages: (CaptureTarget) -> Unit)
 
 @Composable
-fun ScanFireRoot() {
+fun ScanFireRoot(incoming: MutableStateFlow<Incoming?> = MutableStateFlow(null)) {
     val nav = rememberNavController()
     val backStack by nav.currentBackStackEntryAsState()
     val current = backStack?.destination
@@ -137,6 +142,26 @@ fun ScanFireRoot() {
         Capture(scan = { target = it; scanner() }, pickImages = { target = it; picker() })
     }
 
+    val context = LocalContext.current
+    val pending by incoming.collectAsStateWithLifecycle()
+    LaunchedEffect(pending) {
+        val item = pending ?: return@LaunchedEffect
+        incoming.value = null
+        when (item) {
+            is Incoming.Images -> captureVm.newDocument(null, item.uris, fromScanner = false) { nav.navigate(Routes.doc(it)) }
+            is Incoming.Pdf -> captureVm.importPdf(
+                item.uri,
+                onDone = { nav.navigate(Routes.doc(it)) },
+                onError = {
+                    val message = if (it is PdfPasswordRequired) "This PDF has a password. Open it from Tools → Import PDF." else "Couldn't open the PDF: ${it.message}"
+                    Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+                },
+            )
+            Incoming.Scan -> capture.scan(CaptureTarget.NewDocument(null))
+            Incoming.ScanCode -> nav.navigate(Routes.codes(scan = true))
+        }
+    }
+
     Box(Modifier.fillMaxSize()) {
         Scaffold(
             bottomBar = { if (onTab) TabBar(nav, current) },
@@ -151,7 +176,6 @@ fun ScanFireRoot() {
                     )
                 }
                 composable(Tab.Tools.route) {
-                    val context = LocalContext.current
                     ToolsScreen(
                         scanTools = scanTools,
                         onImportPdf = { file, name, password ->
@@ -163,7 +187,7 @@ fun ScanFireRoot() {
                         },
                     )
                 }
-                composable(Tab.Settings.route) { Placeholder("Settings") }
+                composable(Tab.Settings.route) { SettingsScreen() }
 
                 composable(Routes.DOC, arguments = listOf(navArgument("docId") { type = NavType.LongType })) { entry ->
                     DocumentRoute(entry.arguments!!.getLong("docId"), nav, capture)
@@ -252,9 +276,4 @@ fun BusyOverlay(message: String) {
             Text(message, color = Color.White, modifier = Modifier.padding(top = 16.dp))
         }
     }
-}
-
-@Composable
-private fun Placeholder(name: String) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { Text(name) }
 }

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Long-press the launcher icon. targetPackage must match applicationId. -->
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_scan"
+        android:shortcutId="scan"
+        android:shortcutShortLabel="@string/shortcut_scan">
+        <intent
+            android:action="com.ganim.scanfire.action.SCAN"
+            android:targetClass="com.ganim.scanfire.MainActivity"
+            android:targetPackage="com.ganim.scanfire" />
+    </shortcut>
+    <shortcut
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_qr"
+        android:shortcutId="scan_code"
+        android:shortcutShortLabel="@string/shortcut_scan_code">
+        <intent
+            android:action="com.ganim.scanfire.action.SCAN_CODE"
+            android:targetClass="com.ganim.scanfire.MainActivity"
+            android:targetPackage="com.ganim.scanfire" />
+    </shortcut>
+</shortcuts>

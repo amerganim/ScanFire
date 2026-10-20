@@ -55,6 +55,7 @@ dependencies {
     implementation(libs.coil.compose)
     implementation(libs.androidx.exifinterface)
     implementation(libs.reorderable)
+    implementation(libs.androidx.biometric)
     implementation(libs.pdfbox.android)
     implementation(libs.mlkit.text.latin)
     implementation(libs.mlkit.text.devanagari)

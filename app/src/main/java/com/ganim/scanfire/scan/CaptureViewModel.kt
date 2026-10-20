@@ -50,6 +50,20 @@ class CaptureViewModel(
 
     /** Turns a PDF into a ScanFire document, one page image per PDF page at ~200 dpi. */
     fun newDocumentFromPdf(folderId: Long?, pdf: File, name: String, password: String?, onDone: (Long) -> Unit, onError: (Exception) -> Unit) = run {
+        pdfToDocument(folderId, pdf, name, password, onDone, onError)
+    }
+
+    /** A PDF shared or "opened with" ScanFire from another app. */
+    fun importPdf(uri: Uri, onDone: (Long) -> Unit, onError: (Exception) -> Unit) = run {
+        val file = try { pdfTools.copyIn(uri) } catch (e: Exception) { onError(e); return@run }
+        try {
+            pdfToDocument(null, file, pdfTools.displayName(uri), null, onDone, onError)
+        } finally {
+            file.delete()
+        }
+    }
+
+    private suspend fun pdfToDocument(folderId: Long?, pdf: File, name: String, password: String?, onDone: (Long) -> Unit, onError: (Exception) -> Unit) {
         val docId = library.createDocument(name = name, folderId = folderId)
         try {
             pdfTools.renderPages(pdf, dpi = 200, maxEdge = 3000, password = password) { bitmap, _, _ ->
