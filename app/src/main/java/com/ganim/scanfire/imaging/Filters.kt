@@ -1,6 +1,9 @@
 package com.ganim.scanfire.imaging
 
 import android.graphics.Bitmap
+import android.os.SystemClock
+import android.util.Log
+import com.ganim.scanfire.BuildConfig
 
 enum class PageFilter(val key: String, val label: String) {
     Original("original", "Original"),
@@ -21,6 +24,7 @@ object Filters {
     fun apply(bitmap: Bitmap, filter: String): Bitmap {
         val f = PageFilter.of(filter)
         if (f == PageFilter.Original) return bitmap
+        val started = SystemClock.elapsedRealtime()
         val w = bitmap.width
         val h = bitmap.height
         val px = IntArray(w * h)
@@ -32,6 +36,8 @@ object Filters {
             PageFilter.Gray -> FilterKernels.grayscale(px)
             PageFilter.BlackWhite -> FilterKernels.blackWhite(px, w, h)
         }
-        return Bitmap.createBitmap(out, w, h, Bitmap.Config.ARGB_8888)
+        return Bitmap.createBitmap(out, w, h, Bitmap.Config.ARGB_8888).also {
+            if (BuildConfig.DEBUG) Log.d("ScanFire", "filter ${f.key} ${w}x$h took ${SystemClock.elapsedRealtime() - started} ms")
+        }
     }
 }

@@ -96,6 +96,18 @@ class FilterKernelsTest {
     }
 
     @Test
+    fun `parallel bands leave no seams`() {
+        // Tall enough to be split across cores; every row is the same, so every output row must be too.
+        val w = 60; val h = 900
+        val px = IntArray(w * h) { val x = it % w; if (x % 10 < 3) gray(40) else gray(200 - x) }
+        for (out in listOf(FilterKernels.sharpen(px, w, h, amount = 0.8), FilterKernels.magic(px, w, h))) {
+            // Compare against row 5: the very top and bottom rows legitimately differ (edge replication).
+            val reference = out.copyOfRange(5 * w, 6 * w).toList()
+            for (y in 5 until h - 5) out.copyOfRange(y * w, (y + 1) * w).toList() shouldBe reference
+        }
+    }
+
+    @Test
     fun `grayscale removes colour`() {
         val red = rgb(200, 30, 30)
         val out = FilterKernels.grayscale(IntArray(10) { if (it % 2 == 0) red else gray(250) })

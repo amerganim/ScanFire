@@ -1,5 +1,6 @@
 package com.ganim.scanfire.imaging
 
+import java.util.stream.IntStream
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.min
@@ -10,6 +11,21 @@ import kotlin.math.roundToInt
  * unit-tested on the JVM. [Filters] wraps these for Bitmaps.
  */
 object FilterKernels {
+
+    /**
+     * Runs [work] over rows [0, rows) split into bands, one per core. Bands only write their own
+     * rows, so no locking is needed.
+     */
+    private fun inBands(rows: Int, work: (Int, Int) -> Unit) {
+        val cores = Runtime.getRuntime().availableProcessors().coerceIn(1, 8)
+        if (cores == 1 || rows < 256) { work(0, rows); return }
+        val band = (rows + cores - 1) / cores
+        IntStream.range(0, cores).parallel().forEach { b ->
+            val start = b * band
+            val end = min(rows, start + band)
+            if (start < end) work(start, end)
+        }
+    }
 
     fun luma(p: Int): Int {
         val r = (p shr 16) and 0xFF
@@ -96,7 +112,7 @@ object FilterKernels {
         }
     }
 
-    fun paperGrid(px: IntArray, w: Int, h: Int, cellsAcross: Int = 28): PaperGrid {
+    fun paperGrid(px: IntArray, w: Int, h: Int, cellsAcross: Int = 40): PaperGrid {
         val cell = max(8, max(w, h) / cellsAcross)
         val cols = (w + cell - 1) / cell
         val rows = (h + cell - 1) / cell
@@ -151,33 +167,39 @@ object FilterKernels {
         val grid = paperGrid(px, w, h)
         val xs = IntArray(w); val txs = FloatArray(w)
         for (x in 0 until w) grid.axis(x, grid.cols).let { (c, t) -> xs[x] = c; txs[x] = t }
-        val bg = Array(3) { FloatArray(w) }
         val lut = IntArray(256 * 4) { tone(it / 4.0) } // tone() sampled at quarter steps of 0..255
         val out = IntArray(px.size)
-        for (y in 0 until h) {
-            grid.row(y, w, xs, txs, bg)
-            val row = y * w
-            for (x in 0 until w) {
-                val p = px[row + x]
-                // Floor the divisor so very dark regions (photos, a dark table edge) aren't blown out.
-                var r = ((p shr 16) and 0xFF) * 255f / max(64f, bg[0][x])
-                var g = ((p shr 8) and 0xFF) * 255f / max(64f, bg[1][x])
-                var b = (p and 0xFF) * 255f / max(64f, bg[2][x])
-                val l = r * 0.299f + g * 0.587f + b * 0.114f
-                r = l + (r - l) * 1.3f; g = l + (g - l) * 1.3f; b = l + (b - l) * 1.3f
-                out[row + x] = argb(toneOf(lut, r), toneOf(lut, g), toneOf(lut, b))
+        inBands(h) { y0, y1 ->
+            val bg = Array(3) { FloatArray(w) }
+            for (y in y0 until y1) {
+                grid.row(y, w, xs, txs, bg)
+                val row = y * w
+                for (x in 0 until w) {
+                    val p = px[row + x]
+                    // Floor the divisor so very dark regions (photos, a dark table edge) aren't blown out.
+                    var r = ((p shr 16) and 0xFF) * 255f / max(64f, bg[0][x])
+                    var g = ((p shr 8) and 0xFF) * 255f / max(64f, bg[1][x])
+                    var b = (p and 0xFF) * 255f / max(64f, bg[2][x])
+                    val l = r * 0.299f + g * 0.587f + b * 0.114f
+                    r = l + (r - l) * 1.3f; g = l + (g - l) * 1.3f; b = l + (b - l) * 1.3f
+                    out[row + x] = argb(toneOf(lut, r), toneOf(lut, g), toneOf(lut, b))
+                }
             }
         }
-        return sharpen(out, w, h, amount = 0.8)
+        // A higher threshold than Enhance: after whitening, small wobbles are creases and grain, not text.
+        return sharpen(out, w, h, amount = 0.8, threshold = 6)
     }
+
+    /** Normalised brightness at and above which a pixel counts as paper and becomes pure white. */
+    private const val WHITE_POINT = 0.85
 
     private fun toneOf(lut: IntArray, v: Float): Int = lut[(v * 4).toInt().coerceIn(0, lut.size - 1)]
 
-    /** Paper (>= ~88%) becomes pure white; below that a gentle S-curve deepens ink without crushing it. */
+    /** Paper (at or above [WHITE_POINT]) becomes pure white; below that a gentle S-curve deepens ink without crushing it. */
     private fun tone(v: Double): Int {
         val n = (v / 255.0).coerceIn(0.0, 1.0)
-        if (n >= 0.88) return 255
-        val t = n / 0.88
+        if (n >= WHITE_POINT) return 255
+        val t = n / WHITE_POINT
         val s = t * t * (3 - 2 * t)
         return ((s * 0.65 + t * 0.35) * 255).roundToInt()
     }
@@ -190,32 +212,44 @@ object FilterKernels {
     fun sharpen(px: IntArray, w: Int, h: Int, amount: Double, threshold: Int = 3): IntArray {
         if (w < 8 || h < 8) return px
         val radius = max(1, max(w, h) / 1400)
-        val lum = IntArray(px.size) { luma(px[it]) }
+        val lum = IntArray(px.size)
+        inBands(h) { y0, y1 -> for (i in y0 * w until y1 * w) lum[i] = luma(px[i]) }
         // Horizontal running sums, edge-replicated.
         val horizontal = IntArray(px.size)
-        for (y in 0 until h) {
-            val row = y * w
-            var sum = 0
-            for (k in -radius..radius) sum += lum[row + k.coerceIn(0, w - 1)]
-            for (x in 0 until w) {
-                horizontal[row + x] = sum
-                sum += lum[row + min(w - 1, x + radius + 1)] - lum[row + max(0, x - radius)]
+        inBands(h) { y0, y1 ->
+            for (y in y0 until y1) {
+                val row = y * w
+                var sum = 0
+                for (k in -radius..radius) sum += lum[row + k.coerceIn(0, w - 1)]
+                for (x in 0 until w) {
+                    horizontal[row + x] = sum
+                    sum += lum[row + min(w - 1, x + radius + 1)] - lum[row + max(0, x - radius)]
+                }
             }
         }
         val area = (2 * radius + 1) * (2 * radius + 1)
         val out = px.copyOf()
-        for (x in 0 until w) {
-            var sum = 0
-            for (k in -radius..radius) sum += horizontal[k.coerceIn(0, h - 1) * w + x]
-            for (y in 0 until h) {
-                val i = y * w + x
-                val diff = lum[i] - sum / area
-                if (abs(diff) >= threshold) {
-                    val d = (diff * amount).roundToInt()
-                    val p = px[i]
-                    out[i] = argb(((p shr 16) and 0xFF) + d, ((p shr 8) and 0xFF) + d, (p and 0xFF) + d)
+        // Vertical running sums kept per column while walking rows, so memory is read in order.
+        inBands(h) { y0, y1 ->
+            val column = IntArray(w)
+            for (k in -radius..radius) {
+                val row = (y0 + k).coerceIn(0, h - 1) * w
+                for (x in 0 until w) column[x] += horizontal[row + x]
+            }
+            for (y in y0 until y1) {
+                val row = y * w
+                for (x in 0 until w) {
+                    val i = row + x
+                    val diff = lum[i] - column[x] / area
+                    if (abs(diff) >= threshold) {
+                        val d = (diff * amount).roundToInt()
+                        val p = px[i]
+                        out[i] = argb(((p shr 16) and 0xFF) + d, ((p shr 8) and 0xFF) + d, (p and 0xFF) + d)
+                    }
                 }
-                sum += horizontal[min(h - 1, y + radius + 1) * w + x] - horizontal[max(0, y - radius) * w + x]
+                val add = min(h - 1, y + radius + 1) * w
+                val drop = max(0, y - radius) * w
+                for (x in 0 until w) column[x] += horizontal[add + x] - horizontal[drop + x]
             }
         }
         return out
