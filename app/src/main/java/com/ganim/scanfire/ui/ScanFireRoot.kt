@@ -23,6 +23,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.ganim.scanfire.library.LibraryScreen
 
 enum class Tab(val route: String, val label: String, val icon: ImageVector) {
     Documents("documents", "Documents", Icons.Outlined.Description),
@@ -60,7 +61,9 @@ fun ScanFireRoot() {
         },
     ) { padding ->
         NavHost(nav, startDestination = Tab.Documents.route, modifier = Modifier.padding(padding)) {
-            composable(Tab.Documents.route) { Placeholder("Documents") }
+            composable(Tab.Documents.route) {
+                LibraryScreen(onOpenDocument = {}, onScan = {}, onImportImages = {})
+            }
             composable(Tab.Tools.route) { Placeholder("Tools") }
             composable(Tab.Settings.route) { Placeholder("Settings") }
         }
