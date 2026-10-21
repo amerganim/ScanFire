@@ -88,6 +88,12 @@ import com.ganim.scanfire.ui.common.TextInputDialog
 import com.ganim.scanfire.ui.common.appContainer
 import com.ganim.scanfire.ui.common.containerViewModel
 import com.ganim.scanfire.ui.common.formatDate
+import com.ganim.scanfire.ui.common.QuickAction
+import com.ganim.scanfire.ui.common.Tint
+import com.ganim.scanfire.ui.theme.Ember
+import androidx.compose.material.icons.outlined.Badge
+import androidx.compose.material.icons.outlined.DocumentScanner
+import androidx.compose.material.icons.outlined.TextFields
 
 private sealed interface LibraryDialog {
     data object NewFolder : LibraryDialog
@@ -107,6 +113,8 @@ fun LibraryScreen(
     onImportImages: (folderId: Long?) -> Unit,
     onMerge: (docIds: List<Long>, folderId: Long?) -> Unit = { _, _ -> },
     onOpenTrash: () -> Unit = {},
+    onGetText: () -> Unit = {},
+    onIdCard: () -> Unit = {},
 ) {
     val vm = containerViewModel { LibraryViewModel(it.library, it.settings) }
     val state by vm.state.collectAsStateWithLifecycle()
@@ -136,6 +144,8 @@ fun LibraryScreen(
                     onDelete = { dialog = LibraryDialog.DeleteDocuments(state.selection) },
                 )
                 state.searching -> SearchBar(state.query, vm::setQuery) { vm.setSearching(false) }
+                // Top level: the big header scrolls with the content instead (see LibraryGrid's header).
+                state.path.isEmpty() -> Unit
                 else -> TopAppBar(
                     title = { Text(state.path.lastOrNull()?.name ?: "ScanFire") },
                     navigationIcon = {
@@ -159,15 +169,20 @@ fun LibraryScreen(
             }
         },
         floatingActionButton = {
-            if (!selecting) {
+            if (!selecting && !state.searching) {
                 Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    SmallFloatingActionButton(onClick = { onImportImages(state.currentFolderId) }) {
-                        Icon(Icons.Outlined.Image, "Import images")
+                    if (state.path.isNotEmpty()) {
+                        SmallFloatingActionButton(onClick = { onImportImages(state.currentFolderId) }) {
+                            Icon(Icons.Outlined.Image, "Add photos")
+                        }
                     }
                     ExtendedFloatingActionButton(
                         onClick = { onScan(state.currentFolderId) },
-                        icon = { Icon(Icons.Outlined.CameraAlt, null) },
-                        text = { Text("Scan") },
+                        containerColor = Ember,
+                        contentColor = Color.White,
+                        shape = RoundedCornerShape(30.dp),
+                        icon = { Icon(Icons.Outlined.DocumentScanner, null) },
+                        text = { Text("Scan document", style = MaterialTheme.typography.titleMedium) },
                     )
                 }
             }
@@ -175,11 +190,30 @@ fun LibraryScreen(
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
             if (state.path.isNotEmpty() && !state.searching) Breadcrumbs(state, vm::goToDepth)
+            val header: (@Composable () -> Unit)? = if (state.path.isEmpty() && !state.searching && !selecting) {
+                {
+                    HomeHeader(
+                        onSearch = { vm.setSearching(true) },
+                        onOpenTrash = onOpenTrash,
+                        onNewFolder = { dialog = LibraryDialog.NewFolder },
+                        sortOrder = state.settings.sortOrder,
+                        onSort = vm::setSort,
+                        grid = state.settings.gridView,
+                        onToggleGrid = { vm.toggleGrid() },
+                        onScan = { onScan(null) },
+                        onPhotos = { onImportImages(null) },
+                        onGetText = onGetText,
+                        onIdCard = onIdCard,
+                        hasItems = !state.isEmpty,
+                    )
+                }
+            } else null
             when {
                 !state.loaded -> Unit
-                state.isEmpty -> EmptyLibrary(searching = state.searching, inFolder = state.path.isNotEmpty())
+                state.isEmpty && header == null -> EmptyLibrary(searching = state.searching, inFolder = state.path.isNotEmpty())
                 else -> LibraryGrid(
                     state = state,
+                    header = header,
                     onFolder = { if (!selecting) vm.openFolder(it) },
                     onFolderAction = { folder, action ->
                         dialog = when (action) {
@@ -348,15 +382,20 @@ private fun LibraryGrid(
     onDocument: (DocumentSummary) -> Unit,
     onDocumentLong: (DocumentSummary) -> Unit,
     onDocumentAction: (DocumentSummary, String) -> Unit,
+    header: (@Composable () -> Unit)? = null,
 ) {
     val grid = state.settings.gridView
     LazyVerticalGrid(
         columns = if (grid) GridCells.Adaptive(150.dp) else GridCells.Fixed(1),
-        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 160.dp),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 160.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalArrangement = Arrangement.spacedBy(if (grid) 12.dp else 4.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
         modifier = Modifier.fillMaxSize(),
     ) {
+        if (header != null) {
+            item(key = "header", span = { GridItemSpan(maxLineSpan) }) { header() }
+            if (state.isEmpty) item(key = "empty", span = { GridItemSpan(maxLineSpan) }) { HomeEmpty() }
+        }
         items(state.folders, key = { "f${it.id}" }, span = { GridItemSpan(if (grid) 1 else maxLineSpan) }) { folder ->
             FolderRow(folder, onClick = { onFolder(folder) }, onAction = { onFolderAction(folder, it) })
         }
@@ -368,6 +407,88 @@ private fun LibraryGrid(
                 DocumentRow(doc, selected, { onDocument(doc) }, { onDocumentLong(doc) }, { onDocumentAction(doc, it) })
             }
         }
+    }
+}
+
+/** Top of Home: greeting, search, the four everyday actions, then the "Recent" label. Scrolls with the list. */
+@Composable
+private fun HomeHeader(
+    onSearch: () -> Unit,
+    onOpenTrash: () -> Unit,
+    onNewFolder: () -> Unit,
+    sortOrder: SortOrder,
+    onSort: (SortOrder) -> Unit,
+    grid: Boolean,
+    onToggleGrid: () -> Unit,
+    onScan: () -> Unit,
+    onPhotos: () -> Unit,
+    onGetText: () -> Unit,
+    onIdCard: () -> Unit,
+    hasItems: Boolean,
+) {
+    val hour = remember { java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY) }
+    val greeting = when (hour) { in 5..11 -> "Good morning"; in 12..16 -> "Good afternoon"; in 17..21 -> "Good evening"; else -> "Hello" }
+    Column(Modifier.fillMaxWidth().padding(top = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(greeting, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Your documents", style = MaterialTheme.typography.headlineMedium)
+            }
+            IconButton(onClick = onOpenTrash) { Icon(Icons.Outlined.DeleteOutline, "Recycle bin") }
+            var open by remember { mutableStateOf(false) }
+            Box {
+                IconButton(onClick = { open = true }) { Icon(Icons.Outlined.MoreVert, "More options") }
+                DropdownMenu(open, onDismissRequest = { open = false }) {
+                    DropdownMenuItem(text = { Text("New folder") }, leadingIcon = { Icon(Icons.Outlined.CreateNewFolder, null) }, onClick = { open = false; onNewFolder() })
+                    DropdownMenuItem(
+                        text = { Text(if (grid) "Show as list" else "Show as grid") },
+                        leadingIcon = { Icon(if (grid) Icons.Outlined.ViewList else Icons.Outlined.GridView, null) },
+                        onClick = { open = false; onToggleGrid() },
+                    )
+                    listOf(SortOrder.Updated to "Sort: last changed", SortOrder.Created to "Sort: date made", SortOrder.Name to "Sort: name").forEach { (order, label) ->
+                        DropdownMenuItem(
+                            text = { Text(label) },
+                            leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, null) },
+                            trailingIcon = { if (order == sortOrder) Icon(Icons.Filled.CheckCircle, null, tint = MaterialTheme.colorScheme.primary) },
+                            onClick = { open = false; onSort(order) },
+                        )
+                    }
+                }
+            }
+        }
+        Surface(
+            onClick = onSearch,
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp).height(52.dp),
+        ) {
+            Row(Modifier.padding(horizontal = 16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Icon(Icons.Outlined.Search, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("Search names and text inside", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        Row(Modifier.fillMaxWidth().padding(top = 18.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            QuickAction("Scan", Icons.Outlined.DocumentScanner, Tint.Ember, Modifier.weight(1f), onScan)
+            QuickAction("Photos", Icons.Outlined.Image, Tint.Blue, Modifier.weight(1f), onPhotos)
+            QuickAction("Get text", Icons.Outlined.TextFields, Tint.Green, Modifier.weight(1f), onGetText)
+            QuickAction("ID card", Icons.Outlined.Badge, Tint.Violet, Modifier.weight(1f), onIdCard)
+        }
+        if (hasItems) Text("Recent", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 22.dp, bottom = 2.dp))
+    }
+}
+
+@Composable
+private fun HomeEmpty() {
+    Column(Modifier.fillMaxWidth().padding(top = 40.dp, start = 12.dp, end = 12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Text("Nothing here yet", style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(6.dp))
+        Text(
+            "Tap Scan document to point your camera at a page. ScanFire finds the edges and cleans it up for you.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+        )
     }
 }
 
@@ -388,9 +509,10 @@ private fun ItemMenu(onAction: (String) -> Unit) {
 @Composable
 private fun FolderRow(folder: FolderSummary, onClick: () -> Unit, onAction: (String) -> Unit) {
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceContainerLow,
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).combinedClickable(onClick = onClick),
+        shadowElevation = 1.dp,
+        modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).combinedClickable(onClick = onClick),
     ) {
         Row(Modifier.padding(start = 16.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Outlined.Folder, null, tint = MaterialTheme.colorScheme.primary)
@@ -431,13 +553,14 @@ private fun pagesLabel(n: Int) = if (n == 1) "1 page" else "$n pages"
 private fun DocumentRow(doc: DocumentSummary, selected: Boolean, onClick: () -> Unit, onLong: () -> Unit, onAction: (String) -> Unit) {
     val context = LocalContext.current
     Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).combinedClickable(onClick = onClick, onLongClick = onLong),
+        shape = MaterialTheme.shapes.medium,
+        color = if (selected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerLow,
+        shadowElevation = 1.dp,
+        modifier = Modifier.fillMaxWidth().clip(MaterialTheme.shapes.medium).combinedClickable(onClick = onClick, onLongClick = onLong),
     ) {
-        Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(start = 10.dp, top = 10.dp, bottom = 10.dp, end = 4.dp), verticalAlignment = Alignment.CenterVertically) {
             Box {
-                Thumbnail(doc, Modifier.width(56.dp).aspectRatio(0.75f).clip(RoundedCornerShape(6.dp)))
+                Thumbnail(doc, Modifier.width(52.dp).aspectRatio(0.76f).clip(RoundedCornerShape(10.dp)))
                 if (selected) SelectedBadge(Modifier.align(Alignment.TopEnd))
             }
             Column(Modifier.weight(1f).padding(start = 16.dp)) {

@@ -13,6 +13,7 @@ import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -195,6 +196,8 @@ fun ScanFireRoot(incoming: MutableStateFlow<Incoming?> = MutableStateFlow(null))
                         onImportImages = { capture.pickImages(CaptureTarget.NewDocument(it)) },
                         onMerge = { ids, folder -> captureVm.mergeDocuments(ids, folder) { nav.navigate(Routes.doc(it)) } },
                         onOpenTrash = { nav.navigate(Routes.TRASH) },
+                        onGetText = textScanner,
+                        onIdCard = idScanner,
                     )
                 }
                 composable(Tab.Tools.route) {
@@ -280,9 +283,16 @@ fun ScanFireRoot(incoming: MutableStateFlow<Incoming?> = MutableStateFlow(null))
 
 @Composable
 private fun TabBar(nav: NavHostController, current: androidx.navigation.NavDestination?) {
-    NavigationBar {
+    Column {
+    androidx.compose.material3.HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+    NavigationBar(containerColor = MaterialTheme.colorScheme.surfaceContainerLow, tonalElevation = 0.dp) {
         Tab.entries.forEach { tab ->
             NavigationBarItem(
+                colors = androidx.compose.material3.NavigationBarItemDefaults.colors(
+                    selectedIconColor = MaterialTheme.colorScheme.onSecondary,
+                    indicatorColor = MaterialTheme.colorScheme.secondary,
+                    selectedTextColor = MaterialTheme.colorScheme.onSurface,
+                ),
                 selected = current?.hierarchy?.any { it.route == tab.route } == true,
                 onClick = {
                     nav.navigate(tab.route) {
@@ -295,6 +305,7 @@ private fun TabBar(nav: NavHostController, current: androidx.navigation.NavDesti
                 label = { Text(tab.label) },
             )
         }
+    }
     }
 }
 
