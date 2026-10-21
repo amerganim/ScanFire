@@ -25,11 +25,15 @@ class Backup(private val context: Context, private val db: ScanFireDatabase) {
         db.openHelper.writableDatabase.query("PRAGMA wal_checkpoint(FULL)").use { it.moveToFirst() }
         val dbFile = context.getDatabasePath(ScanFireDatabase.NAME)
         val docs = File(context.filesDir, "docs")
+        // Vault files are encrypted with a key that never leaves this phone, so they would be useless in a backup.
+        val vaultDirs = db.openHelper.readableDatabase.query("SELECT id FROM documents WHERE vault = 1").use { c ->
+            buildSet { while (c.moveToNext()) add(c.getLong(0).toString()) }
+        }
         context.contentResolver.openOutputStream(target, "w")?.use { raw ->
             ZipOutputStream(raw.buffered()).use { zip ->
                 zip.putNextEntry(ZipEntry(MARKER)); zip.write("ScanFire backup v1".toByteArray()); zip.closeEntry()
                 zip.putNextEntry(ZipEntry("db/${ScanFireDatabase.NAME}")); dbFile.inputStream().use { it.copyTo(zip) }; zip.closeEntry()
-                docs.walkTopDown().filter { it.isFile && !it.name.endsWith(".part") }.forEach { file ->
+                docs.walkTopDown().filter { it.isFile && !it.name.endsWith(".part") && it.relativeTo(docs).invariantSeparatorsPath.substringBefore('/') !in vaultDirs }.forEach { file ->
                     zip.putNextEntry(ZipEntry("docs/" + file.relativeTo(docs).invariantSeparatorsPath))
                     file.inputStream().use { it.copyTo(zip) }
                     zip.closeEntry()
@@ -65,6 +69,20 @@ class Backup(private val context: Context, private val db: ScanFireDatabase) {
     companion object {
         private const val MARKER = "scanfire-backup.txt"
 
+        /** Backups carry no vault files (see [create]); remove their rows so nothing points at missing pages. */
+        private fun dropVaultRows(dbFile: File) = runCatching {
+            android.database.sqlite.SQLiteDatabase.openDatabase(dbFile.path, null, android.database.sqlite.SQLiteDatabase.OPEN_READWRITE).use { sql ->
+                val hasVault = sql.rawQuery("PRAGMA table_info(documents)", null).use { c ->
+                    generateSequence { if (c.moveToNext()) c.getString(1) else null }.any { it == "vault" }
+                }
+                if (hasVault) {
+                    sql.execSQL("DELETE FROM pages WHERE documentId IN (SELECT id FROM documents WHERE vault = 1)")
+                    sql.execSQL("UPDATE expenses SET documentId = NULL WHERE documentId IN (SELECT id FROM documents WHERE vault = 1)")
+                    sql.execSQL("DELETE FROM documents WHERE vault = 1")
+                }
+            }
+        }
+
         /** Called from Application.onCreate, before anything opens the database. */
         fun applyPendingRestore(context: Context) {
             val staging = File(context.filesDir, "restore-staging")
@@ -74,6 +92,7 @@ class Backup(private val context: Context, private val db: ScanFireDatabase) {
             listOf("", "-wal", "-shm").forEach { File(dbFile.path + it).delete() }
             dbFile.parentFile?.mkdirs()
             stagedDb.copyTo(dbFile, overwrite = true)
+            dropVaultRows(dbFile)
             val docs = File(context.filesDir, "docs")
             docs.deleteRecursively()
             File(staging, "docs").takeIf { it.exists() }?.copyRecursively(docs, overwrite = true)

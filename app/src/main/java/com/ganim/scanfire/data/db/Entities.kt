@@ -1,5 +1,6 @@
 package com.ganim.scanfire.data.db
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -30,6 +31,11 @@ data class DocumentEntity(
     val updatedAt: Long = System.currentTimeMillis(),
     /** Set when moved to the recycle bin; purged 30 days later. */
     val deletedAt: Long? = null,
+    /** In the private vault: page files are encrypted and the document is hidden from the library and search. */
+    @ColumnInfo(defaultValue = "0") val vault: Boolean = false,
+    /** When to remind about this document (an ID or passport expiring, a bill due), or null. */
+    val remindAt: Long? = null,
+    val remindNote: String? = null,
 )
 
 /**
@@ -65,6 +71,23 @@ data class CodeScanEntity(
     val format: String,
     val type: String,
     val createdAt: Long = System.currentTimeMillis(),
+)
+
+/** One receipt or bill in the expense list. [documentId] links back to the scan, if it still exists. */
+@Entity(
+    tableName = "expenses",
+    foreignKeys = [ForeignKey(DocumentEntity::class, ["id"], ["documentId"], onDelete = ForeignKey.SET_NULL)],
+    indices = [Index("documentId"), Index("date")],
+)
+data class ExpenseEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val documentId: Long?,
+    /** In minor units (cents, paisa) so sums are exact. */
+    val amountMinor: Long,
+    val currency: String,
+    val date: Long,
+    val title: String,
+    val category: String = "",
 )
 
 /** Row for the library list: the document plus what the list needs without loading every page. */

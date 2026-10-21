@@ -92,6 +92,9 @@ import com.ganim.scanfire.ui.common.QuickAction
 import com.ganim.scanfire.ui.common.Tint
 import com.ganim.scanfire.ui.theme.Ember
 import androidx.compose.material.icons.outlined.Badge
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Event
+import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.DocumentScanner
 import androidx.compose.material.icons.outlined.TextFields
 
@@ -115,6 +118,9 @@ fun LibraryScreen(
     onOpenTrash: () -> Unit = {},
     onGetText: () -> Unit = {},
     onIdCard: () -> Unit = {},
+    onOpenVault: () -> Unit = {},
+    onOpenReminders: () -> Unit = {},
+    onOpenExpenses: () -> Unit = {},
 ) {
     val vm = containerViewModel { LibraryViewModel(it.library, it.settings) }
     val state by vm.state.collectAsStateWithLifecycle()
@@ -204,6 +210,9 @@ fun LibraryScreen(
                         onPhotos = { onImportImages(null) },
                         onGetText = onGetText,
                         onIdCard = onIdCard,
+                    onOpenVault = onOpenVault,
+                    onOpenReminders = onOpenReminders,
+                    onOpenExpenses = onOpenExpenses,
                         hasItems = !state.isEmpty,
                     )
                 }
@@ -424,6 +433,9 @@ private fun HomeHeader(
     onPhotos: () -> Unit,
     onGetText: () -> Unit,
     onIdCard: () -> Unit,
+    onOpenVault: () -> Unit,
+    onOpenReminders: () -> Unit,
+    onOpenExpenses: () -> Unit,
     hasItems: Boolean,
 ) {
     val hour = remember { java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY) }
@@ -440,6 +452,9 @@ private fun HomeHeader(
                 IconButton(onClick = { open = true }) { Icon(Icons.Outlined.MoreVert, "More options") }
                 DropdownMenu(open, onDismissRequest = { open = false }) {
                     DropdownMenuItem(text = { Text("New folder") }, leadingIcon = { Icon(Icons.Outlined.CreateNewFolder, null) }, onClick = { open = false; onNewFolder() })
+                    DropdownMenuItem(text = { Text("Private vault") }, leadingIcon = { Icon(Icons.Outlined.Lock, null) }, onClick = { open = false; onOpenVault() })
+                    DropdownMenuItem(text = { Text("Reminders") }, leadingIcon = { Icon(Icons.Outlined.Event, null) }, onClick = { open = false; onOpenReminders() })
+                    DropdownMenuItem(text = { Text("Expenses") }, leadingIcon = { Icon(Icons.Outlined.ReceiptLong, null) }, onClick = { open = false; onOpenExpenses() })
                     DropdownMenuItem(
                         text = { Text(if (grid) "Show as list" else "Show as grid") },
                         leadingIcon = { Icon(if (grid) Icons.Outlined.ViewList else Icons.Outlined.GridView, null) },

@@ -31,6 +31,7 @@ sealed interface Incoming {
     data class Pdf(val uri: Uri) : Incoming
     data object Scan : Incoming
     data object ScanCode : Incoming
+    data class OpenDocument(val docId: Long) : Incoming
 }
 
 // FragmentActivity (still a ComponentActivity) because BiometricPrompt needs one.
@@ -112,6 +113,7 @@ class MainActivity : FragmentActivity() {
         return when (intent.action) {
             ACTION_SCAN -> Incoming.Scan
             ACTION_SCAN_CODE -> Incoming.ScanCode
+            ACTION_OPEN_DOCUMENT -> intent.getLongExtra("docId", -1).takeIf { it > 0 }?.let { Incoming.OpenDocument(it) }
             Intent.ACTION_SEND -> IntentCompat.getParcelableExtra(intent, Intent.EXTRA_STREAM, Uri::class.java)?.let { uri ->
                 if (type == "application/pdf") Incoming.Pdf(uri) else Incoming.Images(listOf(uri))
             }
@@ -127,6 +129,7 @@ class MainActivity : FragmentActivity() {
     companion object {
         const val ACTION_SCAN = "com.ganim.scanfire.action.SCAN"
         const val ACTION_SCAN_CODE = "com.ganim.scanfire.action.SCAN_CODE"
+        const val ACTION_OPEN_DOCUMENT = "com.ganim.scanfire.action.OPEN_DOCUMENT"
         private const val KEY_UNLOCKED = "unlocked"
     }
 }

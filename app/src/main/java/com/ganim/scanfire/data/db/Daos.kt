@@ -28,7 +28,7 @@ interface FolderDao {
     @Query(
         """
         SELECT f.id, f.name, f.parentId, f.createdAt,
-          (SELECT COUNT(*) FROM documents d WHERE d.folderId = f.id AND d.deletedAt IS NULL) +
+          (SELECT COUNT(*) FROM documents d WHERE d.folderId = f.id AND d.deletedAt IS NULL AND d.vault = 0) +
           (SELECT COUNT(*) FROM folders c WHERE c.parentId = f.id) AS itemCount
         FROM folders f
         WHERE (:parentId IS NULL AND f.parentId IS NULL) OR f.parentId = :parentId
@@ -78,7 +78,7 @@ interface DocumentDao {
           (SELECT p.imageFile FROM pages p WHERE p.documentId = d.id ORDER BY p.position LIMIT 1) AS coverFile,
           (SELECT p.updatedAt FROM pages p WHERE p.documentId = d.id ORDER BY p.position LIMIT 1) AS coverUpdatedAt
         FROM documents d
-        WHERE ((:folderId IS NULL AND d.folderId IS NULL) OR d.folderId = :folderId) AND d.deletedAt IS NULL
+        WHERE ((:folderId IS NULL AND d.folderId IS NULL) OR d.folderId = :folderId) AND d.deletedAt IS NULL AND d.vault = 0
         """,
     )
     fun observeInFolder(folderId: Long?): Flow<List<DocumentSummary>>
@@ -91,7 +91,7 @@ interface DocumentDao {
           (SELECT p.imageFile FROM pages p WHERE p.documentId = d.id ORDER BY p.position LIMIT 1) AS coverFile,
           (SELECT p.updatedAt FROM pages p WHERE p.documentId = d.id ORDER BY p.position LIMIT 1) AS coverUpdatedAt
         FROM documents d
-        WHERE d.deletedAt IS NULL AND (d.name LIKE '%' || :query || '%'
+        WHERE d.deletedAt IS NULL AND d.vault = 0 AND (d.name LIKE '%' || :query || '%'
            OR EXISTS (SELECT 1 FROM pages p WHERE p.documentId = d.id AND p.ocrText LIKE '%' || :query || '%'))
         """,
     )
@@ -103,7 +103,7 @@ interface DocumentDao {
           (SELECT COUNT(*) FROM pages p WHERE p.documentId = d.id) AS pageCount,
           (SELECT p.imageFile FROM pages p WHERE p.documentId = d.id ORDER BY p.position LIMIT 1) AS coverFile,
           (SELECT p.updatedAt FROM pages p WHERE p.documentId = d.id ORDER BY p.position LIMIT 1) AS coverUpdatedAt
-        FROM documents d WHERE d.deletedAt IS NULL ORDER BY d.updatedAt DESC
+        FROM documents d WHERE d.deletedAt IS NULL AND d.vault = 0 ORDER BY d.updatedAt DESC
         """,
     )
     fun observeAll(): Flow<List<DocumentSummary>>
@@ -133,8 +133,48 @@ interface DocumentDao {
     @Query("SELECT id FROM documents WHERE deletedAt IS NOT NULL")
     suspend fun allTrashed(): List<Long>
 
-    @Query("UPDATE documents SET folderId = NULL, deletedAt = :time WHERE id IN (:ids)")
+    @Query("UPDATE documents SET folderId = NULL, deletedAt = :time WHERE id IN (:ids) AND vault = 0")
     suspend fun trashOutOfFolder(ids: Collection<Long>, time: Long = System.currentTimeMillis())
+
+    @Query(
+        """
+        SELECT d.id, d.name, d.folderId, d.createdAt, d.updatedAt,
+          (SELECT COUNT(*) FROM pages p WHERE p.documentId = d.id) AS pageCount,
+          NULL AS coverFile, NULL AS coverUpdatedAt
+        FROM documents d WHERE d.vault = 1 ORDER BY d.updatedAt DESC
+        """,
+    )
+    fun observeVault(): Flow<List<DocumentSummary>>
+
+    @Query("UPDATE documents SET vault = :vault, folderId = NULL, updatedAt = :time WHERE id = :id")
+    suspend fun setVault(id: Long, vault: Boolean, time: Long = System.currentTimeMillis())
+
+    @Query("SELECT * FROM documents WHERE remindAt IS NOT NULL AND deletedAt IS NULL ORDER BY remindAt")
+    fun observeReminders(): Flow<List<DocumentEntity>>
+
+    @Query("SELECT * FROM documents WHERE remindAt IS NOT NULL AND deletedAt IS NULL")
+    suspend fun reminders(): List<DocumentEntity>
+
+    @Query("UPDATE documents SET remindAt = :at, remindNote = :note WHERE id = :id")
+    suspend fun setReminder(id: Long, at: Long?, note: String?)
+}
+
+@Dao
+interface ExpenseDao {
+    @Insert
+    suspend fun insert(expense: ExpenseEntity): Long
+
+    @Update
+    suspend fun update(expense: ExpenseEntity)
+
+    @Query("DELETE FROM expenses WHERE id = :id")
+    suspend fun delete(id: Long)
+
+    @Query("SELECT * FROM expenses ORDER BY date DESC, id DESC")
+    fun observeAll(): Flow<List<ExpenseEntity>>
+
+    @Query("SELECT * FROM expenses WHERE documentId = :docId LIMIT 1")
+    suspend fun forDocument(docId: Long): ExpenseEntity?
 }
 
 @Dao

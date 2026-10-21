@@ -27,6 +27,24 @@ import com.ganim.scanfire.ui.common.appContainer
 import com.ganim.scanfire.ocr.OcrLanguage
 import com.ganim.scanfire.ocr.TextInsights
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import android.widget.Toast
+import androidx.compose.material.icons.outlined.Event
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.ReceiptLong
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import androidx.fragment.app.FragmentActivity
+import coil3.SingletonImageLoader
+import com.ganim.scanfire.data.db.ExpenseEntity
+import com.ganim.scanfire.expenses.ExpenseDialog
+import com.ganim.scanfire.expenses.ExpenseParser
+import com.ganim.scanfire.reminders.ReminderDialog
+import com.ganim.scanfire.reminders.suggestReminderDay
+import com.ganim.scanfire.scan.findActivity
+import com.ganim.scanfire.security.AppLock
+import com.ganim.scanfire.ui.common.ConfirmDialog
 
 /** The document screen plus everything it launches: capture, export, and per-phase tools. */
 @Composable
@@ -38,6 +56,21 @@ fun DocumentRoute(docId: Long, nav: NavHostController, capture: Capture) {
     val exportBusy by exportVm.busy.collectAsStateWithLifecycle()
     var exportPages by rememberSaveable { mutableStateOf<LongArray?>(null) }
     ExportEffects(exportVm)
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var busy by remember { mutableStateOf<String?>(null) }
+    var confirmVault by remember { mutableStateOf(false) }
+    var reminder by remember { mutableStateOf<Long?>(null) } // suggested day, or 0 for none
+    var expense by remember { mutableStateOf<ExpenseEntity?>(null) }
+
+    /** The first page's text, recognised now if it hasn't been yet. */
+    suspend fun firstPageText(): String? {
+        val page = vm.pageRepo.pagesNow(docId).firstOrNull() ?: return null
+        return page.ocrText ?: runCatching {
+            container.ocr.recognize(vm.pageRepo.imageFile(page), OcrLanguage.of(container.settings.settings.first().ocrScript))
+                .also { vm.pageRepo.setOcrText(page.id, it) }
+        }.getOrNull()
+    }
 
     Box(Modifier.fillMaxSize()) {
         DocumentScreen(
@@ -52,20 +85,87 @@ fun DocumentRoute(docId: Long, nav: NavHostController, capture: Capture) {
             ),
             menuActions = listOf(
                 DocumentAction("Reorder pages", Icons.Outlined.SwapVert) { nav.navigate(Routes.reorder(docId)) },
+                DocumentAction("Remind me", Icons.Outlined.Event) {
+                    busy = "Looking for a date…"
+                    scope.launch { reminder = suggestReminderDay(firstPageText()) ?: 0L; busy = null }
+                },
+                DocumentAction("Add to expenses", Icons.Outlined.ReceiptLong) {
+                    busy = "Reading the receipt…"
+                    scope.launch {
+                        expense = container.expenses.forDocument(docId) ?: run {
+                            val g = ExpenseParser.guess(firstPageText().orEmpty())
+                            ExpenseEntity(
+                                documentId = docId,
+                                amountMinor = g.amountMinor ?: 0,
+                                currency = g.currency,
+                                date = g.date ?: (state.document?.createdAt ?: System.currentTimeMillis()),
+                                title = g.title ?: state.document?.name.orEmpty(),
+                            )
+                        }
+                        busy = null
+                    }
+                },
+                DocumentAction("Move to vault", Icons.Outlined.Lock) {
+                    val activity = context.findActivity() as? FragmentActivity
+                    if (activity == null || !AppLock.available(activity)) {
+                        Toast.makeText(context, "Set up a screen lock or fingerprint on your phone to use the vault", Toast.LENGTH_LONG).show()
+                    } else confirmVault = true
+                },
             ),
             suggestNames = {
-                val page = vm.pageRepo.pagesNow(docId).firstOrNull()
-                if (page == null) emptyList() else {
-                    val text = page.ocrText ?: container.ocr.recognize(vm.pageRepo.imageFile(page), OcrLanguage.of(container.settings.settings.first().ocrScript))
-                        .also { vm.pageRepo.setOcrText(page.id, it) }
-                    TextInsights.suggestNames(text, state.document?.createdAt ?: System.currentTimeMillis())
-                }
+                firstPageText()?.let { TextInsights.suggestNames(it, state.document?.createdAt ?: System.currentTimeMillis()) }.orEmpty()
             },
             selectionActions = listOf(
                 DocumentAction("Export selected", Icons.Outlined.IosShare) { exportPages = state.selection.toLongArray() },
             ),
         )
-        exportBusy?.let { BusyOverlay(it) }
+        (exportBusy ?: busy)?.let { BusyOverlay(it) }
+    }
+
+    if (confirmVault) {
+        ConfirmDialog(
+            "Move to private vault?",
+            "The pages are encrypted on this phone and the document disappears from your library and search. " +
+                "Open it again from Private vault with your fingerprint or screen lock. Vault documents aren't included in backups.",
+            confirm = "Move to vault",
+            onDismiss = { confirmVault = false },
+        ) {
+            confirmVault = false
+            busy = "Encrypting…"
+            scope.launch {
+                container.vault.moveIn(docId)
+                // Drop decoded thumbnails so nothing of the document stays in memory.
+                SingletonImageLoader.get(context).memoryCache?.clear()
+                busy = null
+                Toast.makeText(context, "Moved to the vault", Toast.LENGTH_SHORT).show()
+                nav.popBackStack()
+            }
+        }
+    }
+    reminder?.let { suggested ->
+        val doc = state.document
+        ReminderDialog(
+            suggestedDay = suggested.takeIf { it > 0 },
+            currentDay = doc?.remindAt,
+            currentNote = doc?.remindNote,
+            onDismiss = { reminder = null },
+        ) { day, note ->
+            reminder = null
+            scope.launch {
+                container.reminders.set(docId, day, note)
+                Toast.makeText(context, "ScanFire will remind you on " + java.text.DateFormat.getDateInstance().format(java.util.Date(day)), Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+    expense?.let { e ->
+        ExpenseDialog(
+            initial = e,
+            onDismiss = { expense = null },
+            onDelete = if (e.id != 0L) ({ expense = null; scope.launch { container.expenses.delete(e.id) } }) else null,
+        ) { saved ->
+            expense = null
+            scope.launch { container.expenses.save(saved); Toast.makeText(context, "Added to expenses", Toast.LENGTH_SHORT).show() }
+        }
     }
 
     exportPages?.let { ids ->

@@ -83,6 +83,15 @@ import com.ganim.scanfire.scan.rememberDocumentScanner
 import com.ganim.scanfire.scan.rememberImagePicker
 import com.ganim.scanfire.ui.common.containerViewModel
 import com.ganim.scanfire.ui.common.DarkStudio
+import com.ganim.scanfire.security.VaultScreen
+import com.ganim.scanfire.security.VaultDocumentScreen
+import com.ganim.scanfire.reminders.RemindersScreen
+import com.ganim.scanfire.expenses.ExpensesScreen
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Event
+import androidx.compose.material.icons.outlined.ReceiptLong
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.launch
 
 enum class Tab(val route: String, val label: String, val icon: ImageVector) {
     Documents("documents", "Documents", Icons.Outlined.Description),
@@ -108,6 +117,11 @@ object Routes {
     const val CARD = "card/{docId}"
     fun card(docId: Long) = "card/$docId"
     const val TRANSFER = "transfer"
+    const val VAULT = "vault"
+    const val VAULT_DOC = "vault/{docId}"
+    fun vaultDoc(docId: Long) = "vault/$docId"
+    const val REMINDERS = "reminders"
+    const val EXPENSES = "expenses"
     const val REDACT = "redact/{pageId}"
     fun redact(pageId: Long) = "redact/$pageId"
     const val SIGN = "sign/{pageId}"
@@ -165,6 +179,20 @@ fun ScanFireRoot(incoming: MutableStateFlow<Incoming?> = MutableStateFlow(null))
     }
 
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val database = appContainer().database
+    // Vault documents open in the vault viewer (behind its own unlock), everything else in the document screen.
+    val openDocument: (Long) -> Unit = { id ->
+        scope.launch {
+            val doc = database.documents().get(id) ?: return@launch
+            nav.navigate(if (doc.vault) Routes.VAULT else Routes.doc(id))
+        }
+    }
+    val organiseTools = listOf(
+        ToolTile("Private vault", "Encrypted documents that open with your fingerprint", Icons.Outlined.Lock) { nav.navigate(Routes.VAULT) },
+        ToolTile("Reminders", "Expiry dates and due dates from your documents", Icons.Outlined.Event) { nav.navigate(Routes.REMINDERS) },
+        ToolTile("Expenses", "Totals from your receipts, month by month", Icons.Outlined.ReceiptLong) { nav.navigate(Routes.EXPENSES) },
+    )
     LaunchedEffect(captureVm) { captureVm.messages.collect { Toast.makeText(context, it, Toast.LENGTH_LONG).show() } }
     val pending by incoming.collectAsStateWithLifecycle()
     LaunchedEffect(pending) {
@@ -182,6 +210,7 @@ fun ScanFireRoot(incoming: MutableStateFlow<Incoming?> = MutableStateFlow(null))
             )
             Incoming.Scan -> capture.scan(CaptureTarget.NewDocument(null))
             Incoming.ScanCode -> nav.navigate(Routes.codes(scan = true))
+            is Incoming.OpenDocument -> openDocument(item.docId)
         }
     }
 
@@ -199,11 +228,15 @@ fun ScanFireRoot(incoming: MutableStateFlow<Incoming?> = MutableStateFlow(null))
                         onOpenTrash = { nav.navigate(Routes.TRASH) },
                         onGetText = textScanner,
                         onIdCard = idScanner,
+                        onOpenVault = { nav.navigate(Routes.VAULT) },
+                        onOpenReminders = { nav.navigate(Routes.REMINDERS) },
+                        onOpenExpenses = { nav.navigate(Routes.EXPENSES) },
                     )
                 }
                 composable(Tab.Tools.route) {
                     ToolsScreen(
                         scanTools = scanTools,
+                        organiseTools = organiseTools,
                         onImportPdf = { file, name, password ->
                             captureVm.newDocumentFromPdf(
                                 null, file, name, password,
@@ -258,6 +291,24 @@ fun ScanFireRoot(incoming: MutableStateFlow<Incoming?> = MutableStateFlow(null))
                 }
                 composable(Routes.CODES, arguments = listOf(navArgument("scan") { type = NavType.BoolType; defaultValue = false })) { entry ->
                     CodesScreen(onBack = { nav.popBackStack() }, scanOnOpen = entry.arguments!!.getBoolean("scan"))
+                }
+                composable(Routes.VAULT) {
+                    VaultScreen(onBack = { nav.popBackStack() }, onOpen = { nav.navigate(Routes.vaultDoc(it)) })
+                }
+                composable(Routes.VAULT_DOC, arguments = listOf(navArgument("docId") { type = NavType.LongType })) { entry ->
+                    DarkStudio {
+                        VaultDocumentScreen(
+                            entry.arguments!!.getLong("docId"),
+                            onBack = { nav.popBackStack() },
+                            onMovedOut = { id -> nav.popBackStack(); nav.navigate(Routes.doc(id)) },
+                        )
+                    }
+                }
+                composable(Routes.REMINDERS) {
+                    RemindersScreen(onBack = { nav.popBackStack() }, onOpen = { openDocument(it.id) })
+                }
+                composable(Routes.EXPENSES) {
+                    ExpensesScreen(onBack = { nav.popBackStack() }, onOpenDocument = { openDocument(it) })
                 }
                 composable(Routes.REDACT, arguments = listOf(navArgument("pageId") { type = NavType.LongType })) { entry ->
                     DarkStudio { RedactScreen(entry.arguments!!.getLong("pageId"), onClose = { nav.popBackStack() }) }

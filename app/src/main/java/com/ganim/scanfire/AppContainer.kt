@@ -11,6 +11,9 @@ import com.ganim.scanfire.ocr.OcrEngine
 import com.ganim.scanfire.ocr.TessData
 import com.ganim.scanfire.ocr.Translator
 import com.ganim.scanfire.pdf.PdfTools
+import com.ganim.scanfire.security.Vault
+import com.ganim.scanfire.reminders.Reminders
+import com.ganim.scanfire.expenses.ExpenseRepository
 
 /** Holds the app-wide singletons. */
 class AppContainer(val context: Context) {
@@ -24,4 +27,7 @@ class AppContainer(val context: Context) {
     val ocr: OcrEngine by lazy { OcrEngine(tessData) }
     val translator: Translator by lazy { Translator() }
     val pdfTools: PdfTools by lazy { PdfTools(context, files) }
+    val vault: Vault by lazy { Vault(database, files) }
+    val reminders: Reminders by lazy { Reminders(context, database) }
+    val expenses: ExpenseRepository by lazy { ExpenseRepository(database) }
 }

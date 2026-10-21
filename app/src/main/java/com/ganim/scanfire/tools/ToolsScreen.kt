@@ -82,6 +82,7 @@ private val PdfTool.icon: ImageVector
 @Composable
 fun ToolsScreen(
     scanTools: List<ToolTile>,
+    organiseTools: List<ToolTile> = emptyList(),
     onImportPdf: (file: java.io.File, name: String, password: String?) -> Unit,
 ) {
     val vm = containerViewModel { PdfToolsViewModel(it.pdfTools) }
@@ -119,6 +120,19 @@ fun ToolsScreen(
                 item(span = { GridItemSpan(maxLineSpan) }) { Section("Scan and create") }
                 itemsIndexed(scanTools) { i, tool ->
                     ToolButton(tool.title, tool.icon, Tint.entries[i % Tint.entries.size], Modifier.fillMaxWidth(), onClick = tool.onClick)
+                }
+            }
+            if (organiseTools.isNotEmpty()) {
+                item(span = { GridItemSpan(maxLineSpan) }) { Section("Organise") }
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainerLow, shadowElevation = 1.dp) {
+                        Column {
+                            organiseTools.forEachIndexed { i, tool ->
+                                if (i > 0) GroupDivider()
+                                GroupRow(tool.title, tool.description, tool.icon, onClick = tool.onClick)
+                            }
+                        }
+                    }
                 }
             }
             item(span = { GridItemSpan(maxLineSpan) }) { Section("PDF files") }

@@ -44,6 +44,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.ganim.scanfire.data.db.PageEntity
+import com.ganim.scanfire.ui.common.BarItem
+import com.ganim.scanfire.ui.common.InkActionBar
 
 /** Page-scoped actions (edit, OCR...) supplied by later phases. */
 data class PageAction(val label: String, val icon: androidx.compose.ui.graphics.vector.ImageVector, val onClick: (PageEntity) -> Unit)
@@ -71,19 +73,7 @@ fun PageViewerScreen(
         },
         bottomBar = {
             if (actions.isNotEmpty() && pages.isNotEmpty()) {
-                BottomAppBar {
-                    actions.forEach { action ->
-                        Column(
-                            Modifier.weight(1f).clip(MaterialTheme.shapes.medium)
-                                .clickable { pages.getOrNull(pager.currentPage)?.let(action.onClick) }
-                                .padding(vertical = 4.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            Icon(action.icon, null)
-                            Text(action.label, style = MaterialTheme.typography.labelSmall)
-                        }
-                    }
-                }
+                InkActionBar(actions.map { action -> BarItem(action.label, action.icon) { pages.getOrNull(pager.currentPage)?.let(action.onClick) } })
             }
         },
     ) { padding ->
@@ -94,7 +84,8 @@ fun PageViewerScreen(
 }
 
 @Composable
-fun ZoomableImage(file: java.io.File, modifier: Modifier = Modifier) {
+/** [model] is anything Coil can load: a page file, or decrypted bytes from the vault. */
+fun ZoomableImage(model: Any, modifier: Modifier = Modifier) {
     var scale by remember { mutableFloatStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
     Box(
@@ -119,7 +110,7 @@ fun ZoomableImage(file: java.io.File, modifier: Modifier = Modifier) {
         contentAlignment = Alignment.Center,
     ) {
         AsyncImage(
-            model = file,
+            model = model,
             contentDescription = null,
             contentScale = ContentScale.Fit,
             modifier = Modifier.fillMaxSize().padding(8.dp).graphicsLayer {
