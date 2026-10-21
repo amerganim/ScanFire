@@ -2,8 +2,9 @@
 
 > **Since the audit:** edge detection + corner editor for imported photos, searchable PDF, more OCR
 > languages (44 via Tesseract, incl. Bengali), privacy redaction, read aloud and the recycle bin are
-> all done. Remaining ideas: smart auto-naming, private vault, business card → contact, expiry
-> reminders, expense list, Wi-Fi transfer, QR generator, OCR of a region, TXT → PDF, annotation.
+> all done, and so are smart name suggestions, OCR auto language detection, business card → contact,
+> Wi-Fi transfer to a computer and the QR generator. Remaining ideas: private vault, expiry reminders,
+> expense list, OCR of a region, TXT → PDF, annotation, app UI localization (all languages at once).
 
 Every CamScanner feature from [camscanner-analysis.md](camscanner-analysis.md) that *can* work
 without a server, checked against ScanFire. ✅ done · ⚠️ partly · ❌ missing.
