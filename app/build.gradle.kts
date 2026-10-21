@@ -131,6 +131,7 @@ dependencies {
     implementation(libs.mlkit.translate)
     implementation(libs.mlkit.language.id)
     implementation(libs.tesseract.android)
+    implementation(libs.zxing.core)
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.mlkit.document.scanner)
     implementation(libs.mlkit.code.scanner)

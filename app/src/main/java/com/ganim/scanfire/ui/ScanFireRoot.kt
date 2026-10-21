@@ -54,6 +54,10 @@ import androidx.compose.material.icons.outlined.Badge
 import androidx.compose.material.icons.outlined.DocumentScanner
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import com.ganim.scanfire.qr.CodesScreen
+import com.ganim.scanfire.qr.CreateQrScreen
+import com.ganim.scanfire.transfer.TransferScreen
+import androidx.compose.material.icons.outlined.Computer
+import androidx.compose.material.icons.outlined.QrCode2
 import com.ganim.scanfire.tools.ToolTile
 import com.ganim.scanfire.tools.ToolsScreen
 import com.ganim.scanfire.ui.common.appContainer
@@ -96,6 +100,8 @@ object Routes {
     const val IMPORT_REVIEW = "import-review"
     const val OCR_LANGUAGES = "ocr-languages"
     const val TRASH = "trash"
+    const val QR_CREATE = "qr-create"
+    const val TRANSFER = "transfer"
     const val REDACT = "redact/{pageId}"
     fun redact(pageId: Long) = "redact/$pageId"
     const val SIGN = "sign/{pageId}"
@@ -139,6 +145,8 @@ fun ScanFireRoot(incoming: MutableStateFlow<Incoming?> = MutableStateFlow(null))
             ToolTile("ID card", "Scan the front and back; both go on one page", Icons.Outlined.Badge, idScanner),
             ToolTile("Extract text", "Scan one page and get its text right away", Icons.Outlined.DocumentScanner, textScanner),
             ToolTile("Book", "Scan open-book spreads; each is split into two pages", Icons.AutoMirrored.Outlined.MenuBook, bookScanner),
+            ToolTile("Create QR code", "For a link, text, or your Wi-Fi so guests can join", Icons.Outlined.QrCode2) { nav.navigate(Routes.QR_CREATE) },
+            ToolTile("Send to computer", "Download documents in a computer's browser over Wi-Fi. No cable, no cloud", Icons.Outlined.Computer) { nav.navigate(Routes.TRANSFER) },
         )
     }
 
@@ -226,6 +234,8 @@ fun ScanFireRoot(incoming: MutableStateFlow<Incoming?> = MutableStateFlow(null))
                         ),
                     )
                 }
+                composable(Routes.QR_CREATE) { CreateQrScreen(onBack = { nav.popBackStack() }) }
+                composable(Routes.TRANSFER) { TransferScreen(onBack = { nav.popBackStack() }) }
                 composable(Routes.TRASH) { TrashScreen(onBack = { nav.popBackStack() }) }
                 composable(Routes.OCR_LANGUAGES) { OcrLanguagesScreen(onBack = { nav.popBackStack() }) }
                 composable(Routes.IMPORT_REVIEW) {
@@ -234,7 +244,10 @@ fun ScanFireRoot(incoming: MutableStateFlow<Incoming?> = MutableStateFlow(null))
                 composable(Routes.CODES, arguments = listOf(navArgument("scan") { type = NavType.BoolType; defaultValue = false })) { entry ->
                     CodesScreen(onBack = { nav.popBackStack() }, scanOnOpen = entry.arguments!!.getBoolean("scan"))
                 }
-                composable(Routes.SIGN,arguments = listOf(navArgument("pageId") { type = NavType.LongType })) { entry ->
+                composable(Routes.REDACT, arguments = listOf(navArgument("pageId") { type = NavType.LongType })) { entry ->
+                    RedactScreen(entry.arguments!!.getLong("pageId"), onClose = { nav.popBackStack() })
+                }
+                composable(Routes.SIGN, arguments = listOf(navArgument("pageId") { type = NavType.LongType })) { entry ->
                     SignatureScreen(entry.arguments!!.getLong("pageId"), appContainer().pages, onClose = { nav.popBackStack() })
                 }
                 composable(

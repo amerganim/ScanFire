@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- ScanFire has no server and sends no data anywhere. INTERNET is used only by ML Kit to
-         download a translation language model the first time the user picks that language.
+    <!-- ScanFire has no server and sends no data anywhere. INTERNET is used to download language
+         models once (ML Kit translation, Tesseract OCR) and for 'Send to computer' on the local Wi-Fi.
          Scanner and OCR models are fetched by Google Play services. -->
     <uses-permission android:name="android.permission.INTERNET" />
+    <!-- To find the phone's Wi-Fi address for 'Send to computer' (a server on the local network only). -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
     <application
         android:name=".ScanFireApp"

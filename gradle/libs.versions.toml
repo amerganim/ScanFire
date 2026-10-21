@@ -27,6 +27,7 @@ translate = "17.0.3"
 languageId = "17.0.0"
 pdfbox = "2.0.27.0"
 tesseract = "4.8.0"
+zxing = "3.5.4"
 biometric = "1.1.0"
 appcompat = "1.7.1"
 
@@ -58,6 +59,7 @@ mlkit-translate = { module = "com.google.mlkit:translate", version.ref = "transl
 mlkit-language-id = { module = "com.google.android.gms:play-services-mlkit-language-id", version.ref = "languageId" }
 pdfbox-android = { module = "com.tom-roush:pdfbox-android", version.ref = "pdfbox" }
 # OpenMP build: uses several cores, noticeably faster on phones.
+zxing-core = { module = "com.google.zxing:core", version.ref = "zxing" }
 tesseract-android = { module = "com.github.adaptech-cz.Tesseract4Android:tesseract4android-openmp", version.ref = "tesseract" }
 
 compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }

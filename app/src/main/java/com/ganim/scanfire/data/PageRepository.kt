@@ -131,9 +131,11 @@ class PageRepository(
     suspend fun redact(pageId: Long, boxes: List<RectF>) = bake(pageId, keepText = false) { canvas, w, h ->
         val paint = android.graphics.Paint().apply { color = android.graphics.Color.BLACK }
         boxes.forEach { b ->
-            // A little padding so letter edges and anti-aliasing don't peek out.
-            val padX = (b.height() * h) * 0.15f
-            canvas.drawRect(b.left * w - padX, b.top * h - padX, b.right * w + padX, b.bottom * h + padX, paint)
+            // Padding so letter edges don't peek out; wider at the sides, where OCR word boxes tend to be tight.
+            val lineH = b.height() * h
+            val padX = lineH * 0.45f
+            val padY = lineH * 0.15f
+            canvas.drawRect(b.left * w - padX, b.top * h - padY, b.right * w + padX, b.bottom * h + padY, paint)
         }
     }
 

@@ -162,7 +162,9 @@ private fun RedactCanvas(bitmap: Bitmap, boxes: MutableList<RedactBox>) {
         ) {
             fun rect(r: RectF) = Offset(ox + r.left * w, oy + r.top * h) to Size(r.width() * w, r.height() * h)
             boxes.forEach { b ->
-                val (o, s) = rect(b.rect)
+                // Preview with the same side padding that applying uses (PageRepository.redact).
+                val padX = b.rect.height() * 0.45f * h / w
+                val (o, s) = rect(RectF(b.rect.left - padX, b.rect.top, b.rect.right + padX, b.rect.bottom))
                 if (b.on) drawRect(Color.Black, o, s) else drawRect(primary, o, s, style = Stroke(2.dp.toPx()))
             }
             draft?.let { val (o, s) = rect(it); drawRect(Color.Black.copy(alpha = 0.6f), o, s) }
