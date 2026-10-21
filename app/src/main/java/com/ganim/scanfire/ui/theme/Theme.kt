@@ -194,6 +194,8 @@ private object SystemBars {
 
     fun apply(view: android.view.View) {
         val window = (view.context as? android.app.Activity)?.window ?: return
+        // No grey scrim behind 3-button navigation: screens paint their own colour under it, so the icon tint below suits.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) window.isNavigationBarContrastEnforced = false
         androidx.core.view.WindowCompat.getInsetsController(window, view).apply {
             isAppearanceLightStatusBars = studios == 0 && !appDark
             isAppearanceLightNavigationBars = studios == 0 && !appDark

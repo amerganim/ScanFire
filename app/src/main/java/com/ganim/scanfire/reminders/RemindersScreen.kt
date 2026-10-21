@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -19,7 +21,9 @@ import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DatePickerDefaults
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -128,39 +132,55 @@ fun ReminderDialog(suggestedDay: Long?, currentDay: Long?, currentNote: String?,
     var note by remember { mutableStateOf(currentNote.orEmpty()) }
     val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
 
-    DatePickerDialog(
-        onDismissRequest = onDismiss,
-        confirmButton = {
-            TextButton(enabled = state.selectedDateMillis != null, onClick = {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !Reminders.canNotify(context)) {
-                    permission.launch(Manifest.permission.POST_NOTIFICATIONS)
-                }
-                onSave(utcToLocalDay(state.selectedDateMillis!!), note)
-            }) { Text("Remind me") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
-    ) {
-        Column {
-            if (suggestedDay != null && currentDay == null) {
+    // A plain Dialog rather than DatePickerDialog: that one has a fixed height that squeezes the picker once a
+    // note field is added. Here everything scrolls together and the buttons stay at the end.
+    Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Surface(
+            shape = MaterialTheme.shapes.extraLarge,
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+        ) {
+            Column(Modifier.verticalScroll(rememberScrollState()).padding(bottom = 12.dp)) {
                 Text(
-                    "Date found on the page",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(start = 24.dp, top = 16.dp),
+                    "Remind me on",
+                    style = MaterialTheme.typography.titleLarge,
+                    modifier = Modifier.padding(start = 24.dp, top = 20.dp),
                 )
+                if (suggestedDay != null && currentDay == null) {
+                    Text(
+                        "Date found on the page",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 24.dp, top = 4.dp),
+                    )
+                }
+                DatePicker(
+                    state = state,
+                    title = null,
+                    headline = null,
+                    showModeToggle = false,
+                    colors = DatePickerDefaults.colors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                )
+                OutlinedTextField(
+                    note, { note = it },
+                    label = { Text("Note (optional)") },
+                    placeholder = { Text("Passport expires") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp),
+                )
+                Row(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 12.dp), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onDismiss) { Text("Cancel") }
+                    TextButton(enabled = state.selectedDateMillis != null, onClick = {
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !Reminders.canNotify(context)) {
+                            permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                        onSave(utcToLocalDay(state.selectedDateMillis!!), note)
+                    }) { Text("Remind me") }
+                }
             }
-            DatePicker(state = state, title = null, showModeToggle = true)
-            OutlinedTextField(
-                note, { note = it },
-                label = { Text("Note (optional)") },
-                placeholder = { Text("Passport expires") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 8.dp),
-            )
         }
     }
 }
-
 /** The date picker works in UTC midnights; reminders are local days. */
 private fun localDayToUtc(local: Long): Long {
     val l = Calendar.getInstance().apply { timeInMillis = local }

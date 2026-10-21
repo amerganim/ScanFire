@@ -69,6 +69,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
@@ -545,14 +546,16 @@ private fun FolderRow(folder: FolderSummary, onClick: () -> Unit, onAction: (Str
 }
 
 @Composable
-private fun Thumbnail(doc: DocumentSummary, modifier: Modifier) {
+/** [fit] shows the whole page (grid cards); otherwise the top of the page fills the tile (list rows). */
+private fun Thumbnail(doc: DocumentSummary, modifier: Modifier, fit: Boolean = false) {
     val files = appContainer().files
-    Box(modifier.background(MaterialTheme.colorScheme.surfaceVariant), contentAlignment = Alignment.Center) {
+    Box(modifier.background(MaterialTheme.colorScheme.surfaceVariant).padding(if (fit) 8.dp else 0.dp), contentAlignment = Alignment.Center) {
         if (doc.coverFile != null) {
             AsyncImage(
                 model = files.file(doc.id, doc.coverFile),
                 contentDescription = null,
-                contentScale = ContentScale.Crop,
+                contentScale = if (fit) ContentScale.Fit else ContentScale.Crop,
+                alignment = if (fit) Alignment.Center else Alignment.TopCenter,
                 modifier = Modifier.fillMaxSize(),
             )
         } else {
@@ -603,7 +606,7 @@ private fun DocumentCard(doc: DocumentSummary, selected: Boolean, onClick: () ->
             .combinedClickable(onClick = onClick, onLongClick = onLong),
     ) {
         Box {
-            Thumbnail(doc, Modifier.fillMaxWidth().aspectRatio(0.75f).clip(RoundedCornerShape(12.dp)))
+            Thumbnail(doc, Modifier.fillMaxWidth().aspectRatio(0.75f).clip(RoundedCornerShape(12.dp)), fit = true)
             if (selected) SelectedBadge(Modifier.align(Alignment.TopEnd).padding(6.dp))
             Surface(
                 color = Color.Black.copy(alpha = 0.55f),

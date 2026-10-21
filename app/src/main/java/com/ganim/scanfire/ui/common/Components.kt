@@ -108,8 +108,8 @@ fun ToolButton(label: String, icon: ImageVector, tint: Tint, modifier: Modifier 
     Surface(
         onClick = onClick,
         shape = MaterialTheme.shapes.medium,
-        color = if (inverted) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.surfaceContainerLow,
-        contentColor = if (inverted) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onSurface,
+        color = if (inverted && !LocalIsDark.current) MaterialTheme.colorScheme.secondary else if (inverted) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.surfaceContainerLow,
+        contentColor = if (inverted && !LocalIsDark.current) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onSurface,
         shadowElevation = if (inverted) 0.dp else 1.dp,
         modifier = modifier.heightIn(min = 64.dp),
     ) {
@@ -167,9 +167,13 @@ data class BarItem(val label: String, val icon: ImageVector, val highlighted: Bo
 /** Floating ink action bar at the bottom of document and viewer screens. Highlighted item gets the ember fill. */
 @Composable
 fun InkActionBar(items: List<BarItem>, modifier: Modifier = Modifier) {
+    // Ink on paper in the light theme; in the dark theme a lifted dark bar (a paper-white bar would glare).
+    val dark = LocalIsDark.current
+    val barColor = if (dark) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.secondary
+    val onBar = if (dark) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSecondary
     Surface(
-        color = MaterialTheme.colorScheme.secondary,
-        contentColor = MaterialTheme.colorScheme.onSecondary,
+        color = barColor,
+        contentColor = onBar,
         shape = RoundedCornerShape(26.dp),
         shadowElevation = 6.dp,
         modifier = modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 12.dp, vertical = 12.dp),
@@ -179,7 +183,7 @@ fun InkActionBar(items: List<BarItem>, modifier: Modifier = Modifier) {
                 Surface(
                     onClick = item.onClick,
                     color = if (item.highlighted) Ember else Color.Transparent,
-                    contentColor = if (item.highlighted) Color.White else MaterialTheme.colorScheme.onSecondary,
+                    contentColor = if (item.highlighted) Color.White else onBar,
                     shape = RoundedCornerShape(20.dp),
                     modifier = Modifier.weight(1f).heightIn(min = 58.dp),
                 ) {

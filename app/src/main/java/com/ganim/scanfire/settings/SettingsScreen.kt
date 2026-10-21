@@ -117,7 +117,9 @@ fun SettingsScreen(onManageLanguages: () -> Unit) {
                                 selected = settings.themeMode == i,
                                 onClick = { scope.launch { repo.setTheme(i) } },
                                 shape = SegmentedButtonDefaults.itemShape(i, 3),
-                            ) { Text(label) }
+                                // No checkmark: the filled segment already shows the choice, and labels stay unclipped.
+                                icon = {},
+                            ) { Text(label, maxLines = 1) }
                         }
                     }
                 }
@@ -128,8 +130,8 @@ fun SettingsScreen(onManageLanguages: () -> Unit) {
             SectionLabel("Scanning")
             GroupCard {
                 val filters = PageFilter.entries.map { Choice(it.key, it.label) }
-                GroupRow("Look for imported photos", PageFilter.of(settings.defaultFilter).label, onClick = {
-                    picker = Triple("Look for imported photos", filters, settings.defaultFilter to { k -> scope.launch { repo.setDefaultFilter(k) } })
+                GroupRow("Filter for imported photos", PageFilter.of(settings.defaultFilter).label, onClick = {
+                    picker = Triple("Filter for imported photos", filters, settings.defaultFilter to { k -> scope.launch { repo.setDefaultFilter(k) } })
                 })
                 GroupDivider()
                 val installed by container.tessData.installed.collectAsStateWithLifecycle()
@@ -261,9 +263,11 @@ const val PRIVACY_POLICY_URL = "https://amerganim.github.io/scanfire-privacy/"
 
 @Composable
 private fun PrivacyBanner() {
+    val dark = com.ganim.scanfire.ui.theme.LocalIsDark.current
+    val onBanner = if (dark) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSecondary
     Surface(
-        color = MaterialTheme.colorScheme.secondary,
-        contentColor = MaterialTheme.colorScheme.onSecondary,
+        color = if (dark) MaterialTheme.colorScheme.surfaceContainerHighest else MaterialTheme.colorScheme.secondary,
+        contentColor = onBanner,
         shape = MaterialTheme.shapes.large,
         modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
     ) {
@@ -271,7 +275,7 @@ private fun PrivacyBanner() {
             IconTile(Icons.Outlined.Shield, Tint.Ember, size = 44)
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text("Your documents stay on this phone", style = MaterialTheme.typography.titleSmall)
-                Text("No account, no cloud, no ads. Nothing is uploaded.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSecondary.copy(alpha = 0.75f))
+                Text("No account, no cloud, no ads. Nothing is uploaded.", style = MaterialTheme.typography.bodySmall, color = onBanner.copy(alpha = 0.75f))
             }
         }
     }

@@ -224,6 +224,9 @@ fun ScanFireRoot(incoming: MutableStateFlow<Incoming?> = MutableStateFlow(null))
     Box(Modifier.fillMaxSize()) {
         Scaffold(
             bottomBar = { if (onTab) TabBar(nav, current) },
+            // Only the tab bar pads the content; every other screen draws under the system navigation bar itself
+            // (its own Scaffold or the ink action bar handles the inset), so dark screens stay dark to the edge.
+            contentWindowInsets = androidx.compose.foundation.layout.WindowInsets(0),
         ) { padding ->
             NavHost(nav, startDestination = Tab.Documents.route, modifier = Modifier.padding(bottom = padding.calculateBottomPadding())) {
                 composable(Tab.Documents.route) {
