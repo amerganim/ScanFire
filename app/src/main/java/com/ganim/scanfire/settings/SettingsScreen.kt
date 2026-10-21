@@ -105,7 +105,7 @@ fun SettingsScreen(onManageLanguages: () -> Unit) {
                     picker = Triple("Default filter", filters, settings.defaultFilter to { k -> scope.launch { repo.setDefaultFilter(k) } })
                 }
                 val installed by container.tessData.installed.collectAsStateWithLifecycle()
-                val languages = (OcrLanguage.mlKit + OcrLanguage.tesseract.filter { it.code in installed }).map { Choice(it.key, it.label) }
+                val languages = (listOf<OcrLanguage>(OcrLanguage.Auto) + OcrLanguage.mlKit + OcrLanguage.tesseract.filter { it.code in installed }).map { Choice(it.key, it.label) }
                 ChoiceRow("Text recognition language", OcrLanguage.of(settings.ocrScript).label) {
                     picker = Triple("Text recognition language", languages, settings.ocrScript to { k -> scope.launch { repo.setOcrScript(k) } })
                 }

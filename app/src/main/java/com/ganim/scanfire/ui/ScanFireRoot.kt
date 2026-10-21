@@ -55,6 +55,8 @@ import androidx.compose.material.icons.outlined.DocumentScanner
 import androidx.compose.material.icons.outlined.QrCodeScanner
 import com.ganim.scanfire.qr.CodesScreen
 import com.ganim.scanfire.qr.CreateQrScreen
+import com.ganim.scanfire.ocr.CardScreen
+import androidx.compose.material.icons.outlined.ContactPage
 import com.ganim.scanfire.transfer.TransferScreen
 import androidx.compose.material.icons.outlined.Computer
 import androidx.compose.material.icons.outlined.QrCode2
@@ -101,6 +103,8 @@ object Routes {
     const val OCR_LANGUAGES = "ocr-languages"
     const val TRASH = "trash"
     const val QR_CREATE = "qr-create"
+    const val CARD = "card/{docId}"
+    fun card(docId: Long) = "card/$docId"
     const val TRANSFER = "transfer"
     const val REDACT = "redact/{pageId}"
     fun redact(pageId: Long) = "redact/$pageId"
@@ -139,12 +143,16 @@ fun ScanFireRoot(incoming: MutableStateFlow<Incoming?> = MutableStateFlow(null))
     val textScanner = rememberDocumentScanner(pageLimit = 1) { uris ->
         captureVm.newDocument(null, uris, fromScanner = true) { nav.navigate(Routes.ocr(it)) }
     }
-    val scanTools = remember(idScanner, bookScanner, textScanner) {
+    val cardScanner = rememberDocumentScanner(pageLimit = 1) { uris ->
+        captureVm.newDocument(null, uris, fromScanner = true) { nav.navigate(Routes.card(it)) }
+    }
+    val scanTools = remember(idScanner, bookScanner, textScanner, cardScanner) {
         listOf(
             ToolTile("QR & barcodes", "Scan any QR code or barcode; history stays on the phone", Icons.Outlined.QrCodeScanner) { nav.navigate(Routes.codes(scan = true)) },
             ToolTile("ID card", "Scan the front and back; both go on one page", Icons.Outlined.Badge, idScanner),
             ToolTile("Extract text", "Scan one page and get its text right away", Icons.Outlined.DocumentScanner, textScanner),
             ToolTile("Book", "Scan open-book spreads; each is split into two pages", Icons.AutoMirrored.Outlined.MenuBook, bookScanner),
+            ToolTile("Business card", "Scan a card and add the person to your contacts", Icons.Outlined.ContactPage, cardScanner),
             ToolTile("Create QR code", "For a link, text, or your Wi-Fi so guests can join", Icons.Outlined.QrCode2) { nav.navigate(Routes.QR_CREATE) },
             ToolTile("Send to computer", "Download documents in a computer's browser over Wi-Fi. No cable, no cloud", Icons.Outlined.Computer) { nav.navigate(Routes.TRANSFER) },
         )
@@ -233,6 +241,9 @@ fun ScanFireRoot(incoming: MutableStateFlow<Incoming?> = MutableStateFlow(null))
                             PageAction("Redact", Icons.Outlined.HideSource) { nav.navigate(Routes.redact(it.id)) },
                         ),
                     )
+                }
+                composable(Routes.CARD, arguments = listOf(navArgument("docId") { type = NavType.LongType })) { entry ->
+                    CardScreen(entry.arguments!!.getLong("docId"), onBack = { nav.popBackStack() })
                 }
                 composable(Routes.QR_CREATE) { CreateQrScreen(onBack = { nav.popBackStack() }) }
                 composable(Routes.TRANSFER) { TransferScreen(onBack = { nav.popBackStack() }) }

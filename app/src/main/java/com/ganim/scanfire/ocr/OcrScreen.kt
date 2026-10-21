@@ -172,7 +172,7 @@ private fun LanguagePicker(current: OcrLanguage, installed: Set<String>, enabled
     Box {
         OutlinedButton(enabled = enabled, onClick = { open = true }) { Text("Language: ${current.label}", maxLines = 1, overflow = TextOverflow.Ellipsis) }
         DropdownMenu(open, onDismissRequest = { open = false }, modifier = Modifier.heightIn(max = 420.dp)) {
-            OcrLanguage.mlKit.forEach { lang ->
+            (listOf<OcrLanguage>(OcrLanguage.Auto) + OcrLanguage.mlKit).forEach { lang ->
                 DropdownMenuItem(text = { Text(lang.label) }, onClick = { open = false; if (lang != current) onPick(lang) })
             }
             OcrLanguage.tesseract.filter { it.code in installed }.forEach { lang ->

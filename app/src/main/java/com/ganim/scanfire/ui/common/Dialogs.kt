@@ -1,7 +1,13 @@
 package com.ganim.scanfire.ui.common
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SuggestionChip
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -30,12 +36,15 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import com.ganim.scanfire.data.db.FolderEntity
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TextInputDialog(
     title: String,
     initial: String = "",
     label: String = "Name",
     confirm: String = "Save",
+    /** Optional one-tap suggestions shown under the field; null while they're still being worked out. */
+    suggestions: List<String>? = emptyList(),
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit,
 ) {
@@ -46,13 +55,23 @@ fun TextInputDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            OutlinedTextField(
-                value = value,
-                onValueChange = { value = it },
-                label = { Text(label) },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth().focusRequester(focus),
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = { value = it },
+                    label = { Text(label) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth().focusRequester(focus),
+                )
+                when {
+                    suggestions == null -> Text("Reading the page for name ideas…", style = MaterialTheme.typography.bodySmall)
+                    suggestions.isNotEmpty() -> FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        suggestions.forEach { s ->
+                            SuggestionChip(onClick = { value = TextFieldValue(s, TextRange(s.length)) }, label = { Text(s, maxLines = 1) })
+                        }
+                    }
+                }
+            }
         },
         confirmButton = {
             TextButton(enabled = value.text.isNotBlank(), onClick = { onConfirm(value.text.trim()) }) { Text(confirm) }

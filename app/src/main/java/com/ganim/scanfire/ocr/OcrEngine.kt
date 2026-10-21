@@ -64,7 +64,34 @@ class OcrEngine(private val tessData: TessData) {
         }
     }
 
+    /** Auto-detect results per page image, so export and redaction don't repeat the detection. */
+    private val detected = java.util.concurrent.ConcurrentHashMap<String, OcrLanguage>()
+
+    /**
+     * The language to read [file] with: [language] itself, or for [OcrLanguage.Auto] whichever of Latin and the
+     * downloaded Tesseract languages produces the most readable text.
+     */
+    suspend fun resolve(file: File, language: OcrLanguage): OcrLanguage =
+        if (language != OcrLanguage.Auto) language else detected[file.path] ?: detect(file).first
+
+    private suspend fun detect(file: File): Pair<OcrLanguage, String> {
+        val candidates = listOf<OcrLanguage>(OcrLanguage.MlKit(OcrScript.Latin)) +
+            OcrLanguage.tesseract.filter { it.code != "eng" && tessData.has(it.code) }.take(3)
+        var best: Pair<OcrLanguage, String>? = null
+        var bestScore = -1
+        for (candidate in candidates) {
+            val text = runCatching { recognize(file, candidate) }.getOrNull() ?: continue
+            val score = TextInsights.readability(text, TextInsights.scriptOf(candidate))
+            // Strictly better only: on a tie the earlier (ML Kit Latin, faster and very accurate) wins.
+            if (score > bestScore) { best = candidate to text; bestScore = score }
+        }
+        val result = best ?: (OcrLanguage.MlKit(OcrScript.Latin) to "")
+        detected[file.path] = result.first
+        return result
+    }
+
     suspend fun recognize(file: File, language: OcrLanguage): String = when (language) {
+        OcrLanguage.Auto -> detected[file.path]?.let { recognize(file, it) } ?: detect(file).second
         is OcrLanguage.MlKit -> {
             // ML Kit wants text at least ~16 px tall; 2400 px on the long edge keeps body text legible and memory sane.
             val bitmap = withContext(Dispatchers.IO) { Bitmaps.decode(file, maxEdge = 2400) }
@@ -75,6 +102,7 @@ class OcrEngine(private val tessData: TessData) {
 
     /** Words with positions, for the searchable-PDF text layer and for redaction. */
     suspend fun words(file: File, language: OcrLanguage): List<OcrWord> = when (language) {
+        OcrLanguage.Auto -> words(file, resolve(file, language))
         is OcrLanguage.MlKit -> {
             val bitmap = withContext(Dispatchers.IO) { Bitmaps.decode(file, maxEdge = 2400) }
             if (bitmap == null) emptyList() else try {

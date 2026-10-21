@@ -42,6 +42,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -71,6 +72,8 @@ fun DocumentScreen(
     bottomActions: List<DocumentAction> = emptyList(),
     menuActions: List<DocumentAction> = emptyList(),
     selectionActions: List<DocumentAction> = emptyList(),
+    /** Name ideas from the document's content (see TextInsights.suggestNames). */
+    suggestNames: suspend () -> List<String> = { emptyList() },
 ) {
     val state by vm.state.collectAsStateWithLifecycle()
     var renaming by remember { mutableStateOf(false) }
@@ -155,7 +158,8 @@ fun DocumentScreen(
     }
 
     if (renaming) {
-        TextInputDialog("Rename document", state.document?.name.orEmpty(), onDismiss = { renaming = false }) {
+        val ideas by produceState<List<String>?>(null) { value = runCatching { suggestNames() }.getOrDefault(emptyList()) }
+        TextInputDialog("Rename document", state.document?.name.orEmpty(), suggestions = ideas, onDismiss = { renaming = false }) {
             vm.rename(it); renaming = false
         }
     }

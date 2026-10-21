@@ -28,7 +28,8 @@ data class Settings(
     val exportQuality: Int = 85,
     val pdfMargin: Boolean = true,
     val appLock: Boolean = false,
-    val ocrScript: String = "latin",
+    /** OCR language key (see OcrLanguage); "auto" picks the best of Latin and the downloaded languages. */
+    val ocrScript: String = "auto",
 )
 
 class SettingsRepository(private val context: Context) {
@@ -57,7 +58,7 @@ class SettingsRepository(private val context: Context) {
         exportQuality = this[Keys.quality] ?: 85,
         pdfMargin = this[Keys.margin] ?: true,
         appLock = this[Keys.lock] ?: false,
-        ocrScript = this[Keys.ocrScript] ?: "latin",
+        ocrScript = this[Keys.ocrScript] ?: "auto",
     )
 
     suspend fun setSort(order: SortOrder) = context.dataStore.edit { it[Keys.sort] = order.name }

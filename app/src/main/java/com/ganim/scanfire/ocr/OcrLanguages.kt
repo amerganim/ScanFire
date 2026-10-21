@@ -12,6 +12,12 @@ sealed interface OcrLanguage {
     val key: String
     val label: String
 
+    /** Tries Latin and every downloaded language, and keeps the result that reads best. */
+    data object Auto : OcrLanguage {
+        override val key = "auto"
+        override val label = "Auto-detect"
+    }
+
     data class MlKit(val script: OcrScript) : OcrLanguage {
         override val key get() = script.key
         override val label get() = script.label
@@ -74,8 +80,10 @@ sealed interface OcrLanguage {
 
         val mlKit: List<MlKit> = OcrScript.entries.map { MlKit(it) }
 
-        fun of(key: String): OcrLanguage =
-            if (key.startsWith("tess:")) tesseract.firstOrNull { it.key == key } ?: MlKit(OcrScript.Latin)
-            else MlKit(OcrScript.of(key))
+        fun of(key: String): OcrLanguage = when {
+            key == Auto.key -> Auto
+            key.startsWith("tess:") -> tesseract.firstOrNull { it.key == key } ?: Auto
+            else -> MlKit(OcrScript.of(key))
+        }
     }
 }

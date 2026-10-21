@@ -61,6 +61,7 @@ class ReadAloud(context: Context) {
 
         /** Speech locale for an OCR language; Latin-script text gets its language from detection. */
         fun localeFor(language: OcrLanguage, detected: String?): Locale = when (language) {
+            OcrLanguage.Auto -> detected?.let(Locale::forLanguageTag) ?: Locale.getDefault()
             is OcrLanguage.MlKit -> when (language.script) {
                 OcrScript.Devanagari -> Locale.forLanguageTag("hi")
                 OcrScript.Chinese -> Locale.CHINESE

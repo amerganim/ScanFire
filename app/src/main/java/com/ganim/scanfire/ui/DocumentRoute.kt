@@ -23,10 +23,15 @@ import com.ganim.scanfire.export.ExportSheet
 import com.ganim.scanfire.export.ExportViewModel
 import com.ganim.scanfire.scan.CaptureTarget
 import com.ganim.scanfire.ui.common.containerViewModel
+import com.ganim.scanfire.ui.common.appContainer
+import com.ganim.scanfire.ocr.OcrLanguage
+import com.ganim.scanfire.ocr.TextInsights
+import kotlinx.coroutines.flow.first
 
 /** The document screen plus everything it launches: capture, export, and per-phase tools. */
 @Composable
 fun DocumentRoute(docId: Long, nav: NavHostController, capture: Capture) {
+    val container = appContainer()
     val vm = containerViewModel(key = "doc-$docId") { DocumentViewModel(docId, it.library, it.pages) }
     val exportVm = containerViewModel(key = "export-$docId") { ExportViewModel(it.library, it.pages, it.settings, it.exporter, it.ocr) }
     val state by vm.state.collectAsStateWithLifecycle()
@@ -48,6 +53,14 @@ fun DocumentRoute(docId: Long, nav: NavHostController, capture: Capture) {
             menuActions = listOf(
                 DocumentAction("Reorder pages", Icons.Outlined.SwapVert) { nav.navigate(Routes.reorder(docId)) },
             ),
+            suggestNames = {
+                val page = vm.pageRepo.pagesNow(docId).firstOrNull()
+                if (page == null) emptyList() else {
+                    val text = page.ocrText ?: container.ocr.recognize(vm.pageRepo.imageFile(page), OcrLanguage.of(container.settings.settings.first().ocrScript))
+                        .also { vm.pageRepo.setOcrText(page.id, it) }
+                    TextInsights.suggestNames(text, state.document?.createdAt ?: System.currentTimeMillis())
+                }
+            },
             selectionActions = listOf(
                 DocumentAction("Export selected", Icons.Outlined.IosShare) { exportPages = state.selection.toLongArray() },
             ),
