@@ -100,6 +100,29 @@ class OcrEngine(private val tessData: TessData) {
         is OcrLanguage.Tesseract -> recognizeTesseract(file, language)
     }
 
+    /**
+     * Text inside one area of the page ([left]..[bottom] as 0..1 of the image). The area is cut out at full
+     * resolution first, so small print reads better than it does in a whole-page pass.
+     */
+    suspend fun recognizeRegion(file: File, language: OcrLanguage, tempFile: File, left: Float, top: Float, right: Float, bottom: Float): String {
+        val resolved = resolve(file, language)
+        withContext(Dispatchers.IO) {
+            val full = Bitmaps.decode(file, maxEdge = 4000) ?: error("Couldn't open the page")
+            try {
+                val x = (left.coerceIn(0f, 1f) * full.width).toInt()
+                val y = (top.coerceIn(0f, 1f) * full.height).toInt()
+                val w = ((right.coerceIn(0f, 1f) - left.coerceIn(0f, 1f)) * full.width).toInt().coerceIn(1, full.width - x)
+                val h = ((bottom.coerceIn(0f, 1f) - top.coerceIn(0f, 1f)) * full.height).toInt().coerceIn(1, full.height - y)
+                val part = Bitmap.createBitmap(full, x, y, w, h)
+                tempFile.outputStream().use { part.compress(Bitmap.CompressFormat.PNG, 100, it) }
+                if (part !== full) part.recycle()
+            } finally {
+                full.recycle()
+            }
+        }
+        return try { recognize(tempFile, resolved) } finally { tempFile.delete() }
+    }
+
     /** Words with positions, for the searchable-PDF text layer and for redaction. */
     suspend fun words(file: File, language: OcrLanguage): List<OcrWord> = when (language) {
         OcrLanguage.Auto -> words(file, resolve(file, language))

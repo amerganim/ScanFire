@@ -24,6 +24,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.Crop
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Save
@@ -62,7 +63,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun OcrScreen(vm: OcrViewModel, onBack: () -> Unit, onManageLanguages: () -> Unit) {
+fun OcrScreen(vm: OcrViewModel, onBack: () -> Unit, onManageLanguages: () -> Unit, onSelectArea: (() -> Unit)? = null) {
     val state by vm.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -79,6 +80,7 @@ fun OcrScreen(vm: OcrViewModel, onBack: () -> Unit, onManageLanguages: () -> Uni
                     if (state.singlePage && state.edited) {
                         IconButton(onClick = vm::saveEdit) { Icon(Icons.Outlined.Save, "Save text") }
                     }
+                    if (onSelectArea != null) IconButton(onClick = onSelectArea) { Icon(Icons.Outlined.Crop, "Read part of the page") }
                     IconButton(enabled = !state.running, onClick = { vm.run(force = true) }) { Icon(Icons.Outlined.Refresh, "Recognize again") }
                 },
             )

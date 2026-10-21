@@ -83,6 +83,9 @@ import com.ganim.scanfire.scan.rememberDocumentScanner
 import com.ganim.scanfire.scan.rememberImagePicker
 import com.ganim.scanfire.ui.common.containerViewModel
 import com.ganim.scanfire.ui.common.DarkStudio
+import com.ganim.scanfire.ocr.RegionOcrScreen
+import com.ganim.scanfire.edit.MarkupScreen
+import androidx.compose.material.icons.outlined.Gesture
 import com.ganim.scanfire.security.VaultScreen
 import com.ganim.scanfire.security.VaultDocumentScreen
 import com.ganim.scanfire.reminders.RemindersScreen
@@ -118,6 +121,10 @@ object Routes {
     fun card(docId: Long) = "card/$docId"
     const val TRANSFER = "transfer"
     const val VAULT = "vault"
+    const val REGION = "region/{pageId}"
+    fun region(pageId: Long) = "region/$pageId"
+    const val MARKUP = "markup/{pageId}"
+    fun markup(pageId: Long) = "markup/$pageId"
     const val VAULT_DOC = "vault/{docId}"
     fun vaultDoc(docId: Long) = "vault/$docId"
     const val REMINDERS = "reminders"
@@ -274,6 +281,7 @@ fun ScanFireRoot(incoming: MutableStateFlow<Incoming?> = MutableStateFlow(null))
                         actions = listOf(
                             PageAction("Edit", Icons.Outlined.Tune) { nav.navigate(Routes.edit(it.id)) },
                             PageAction("Text", Icons.Outlined.TextFields) { nav.navigate(Routes.ocr(docId, it.id)) },
+                            PageAction("Mark up", Icons.Outlined.Gesture) { nav.navigate(Routes.markup(it.id)) },
                             PageAction("Sign", Icons.Outlined.Draw) { nav.navigate(Routes.sign(it.id)) },
                             PageAction("Redact", Icons.Outlined.HideSource) { nav.navigate(Routes.redact(it.id)) },
                         ),
@@ -291,6 +299,12 @@ fun ScanFireRoot(incoming: MutableStateFlow<Incoming?> = MutableStateFlow(null))
                 }
                 composable(Routes.CODES, arguments = listOf(navArgument("scan") { type = NavType.BoolType; defaultValue = false })) { entry ->
                     CodesScreen(onBack = { nav.popBackStack() }, scanOnOpen = entry.arguments!!.getBoolean("scan"))
+                }
+                composable(Routes.REGION, arguments = listOf(navArgument("pageId") { type = NavType.LongType })) { entry ->
+                    DarkStudio { RegionOcrScreen(entry.arguments!!.getLong("pageId"), onClose = { nav.popBackStack() }) }
+                }
+                composable(Routes.MARKUP, arguments = listOf(navArgument("pageId") { type = NavType.LongType })) { entry ->
+                    DarkStudio { MarkupScreen(entry.arguments!!.getLong("pageId"), appContainer().pages, onClose = { nav.popBackStack() }) }
                 }
                 composable(Routes.VAULT) {
                     VaultScreen(onBack = { nav.popBackStack() }, onOpen = { nav.navigate(Routes.vaultDoc(it)) })
@@ -325,7 +339,12 @@ fun ScanFireRoot(incoming: MutableStateFlow<Incoming?> = MutableStateFlow(null))
                     val vm = containerViewModel(key = "ocr-$docId-$pageId") {
                         OcrViewModel(docId, pageId, it.library, it.pages, it.settings, it.ocr, it.translator, it.files, it.tessData)
                     }
-                    OcrScreen(vm, onBack = { nav.popBackStack() }, onManageLanguages = { nav.navigate(Routes.OCR_LANGUAGES) })
+                    OcrScreen(
+                        vm,
+                        onBack = { nav.popBackStack() },
+                        onManageLanguages = { nav.navigate(Routes.OCR_LANGUAGES) },
+                        onSelectArea = if (pageId > 0) ({ nav.navigate(Routes.region(pageId)) }) else null,
+                    )
                 }
             }
         }
