@@ -9,29 +9,31 @@ runs on the phone using free, on-device Google ML Kit models and open-source lib
 
 **Scan**
 - Automatic edge detection, perspective correction and auto-capture (ML Kit Document Scanner)
-- Import photos from the gallery, or share photos and PDFs into ScanFire from any app
+- Import photos from the gallery or share them in: ScanFire finds the page, straightens it and enhances it like a scan (corners adjustable)
 - ID card mode (front and back on one page), book mode (splits spreads), scan-to-text
 - QR code and barcode scanner with local history
 
 **Edit**
-- Filters: Original, Enhance, Magic color, Grayscale, B&W (adaptive threshold)
+- Filters: Original, Enhance, Magic color (default for imports: whitens paper, removes shadows and colour tints, sharpens text), Grayscale, B&W
 - Crop, rotate, reorder by drag, delete, add pages; every edit can be redone from the original
 - Sign pages with a drawn signature
 
 **Text (OCR)**
-- Offline text recognition for Latin, Devanagari, Chinese, Japanese and Korean scripts
+- Offline text recognition: Latin, Devanagari, Chinese, Japanese and Korean built in, plus 44 more languages (Bengali, Arabic, Urdu, Tamil, Thai, Russian, Greek, Hebrew...) as one-time free downloads
 - Edit, copy and share text, or export it as TXT or Word (.docx)
 - Search your library by document name and recognised text
-- Translate offline (each language model downloads once)
+- Translate offline (each language model downloads once) and read text aloud
 
 **PDF and export**
-- Export as PDF (A4, Letter or fit-to-image), JPEG, ZIP or one long image
+- Export as PDF (A4, Letter or fit-to-image) with a hidden text layer so it's searchable and copyable, or as JPEG, ZIP or one long image
 - Share, save anywhere through the system file picker (Drive, USB, etc.), or print
 - PDF tools: import, merge, extract pages, compress, add or remove a password, watermark, page numbers
 
 **Organise and protect**
 - Folders and subfolders, list or grid view, sort, multi-select, move, merge documents
+- Privacy redaction: finds phone numbers, emails, card and ID numbers (any digits, including Bengali) and blacks them out for good
 - App lock with fingerprint, face or screen lock; hidden from the recent-apps preview
+- Recycle bin: deleted documents can be restored for 30 days
 - Backup and restore everything as one ZIP
 
 How the feature set was chosen: [docs/camscanner-analysis.md](docs/camscanner-analysis.md).
@@ -41,7 +43,7 @@ Build phases: [docs/PLAN.md](docs/PLAN.md).
 
 Documents never leave the phone unless you share or save them. The app has no analytics and
 no server. The only network use is ML Kit downloading a translation language model the first
-time you pick a language. Scanner, OCR and barcode models come from Google Play services, so
+time you pick a language, and downloading an extra OCR language from the Tesseract project's GitHub. Scanner, OCR and barcode models come from Google Play services, so
 ScanFire needs a phone with Google Play services.
 
 ## Build

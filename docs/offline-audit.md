@@ -1,4 +1,9 @@
-# Offline feature audit (2026-10-20)
+# Offline feature audit (2026-10-20, updated 2026-10-21)
+
+> **Since the audit:** edge detection + corner editor for imported photos, searchable PDF, more OCR
+> languages (44 via Tesseract, incl. Bengali), privacy redaction, read aloud and the recycle bin are
+> all done. Remaining ideas: smart auto-naming, private vault, business card → contact, expiry
+> reminders, expense list, Wi-Fi transfer, QR generator, OCR of a region, TXT → PDF, annotation.
 
 Every CamScanner feature from [camscanner-analysis.md](camscanner-analysis.md) that *can* work
 without a server, checked against ScanFire. ✅ done · ⚠️ partly · ❌ missing.
