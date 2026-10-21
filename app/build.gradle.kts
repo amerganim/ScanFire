@@ -84,8 +84,27 @@ android {
 
     testOptions {
         unitTests.all { it.useJUnitPlatform() }
+        // PdfBox-Android logs through android.util.Log; let those stubs no-op in JVM tests.
+        unitTests.isReturnDefaultValues = true
     }
 }
+
+/**
+ * PdfBox-Android keeps CMaps, glyph lists and fonts as Android assets, which JVM unit tests can't see.
+ * Unpack them from the library onto the test classpath (tests only; nothing extra ships).
+ */
+val pdfboxTestAssets = layout.buildDirectory.dir("pdfbox-test-assets")
+val pdfboxAar = configurations.detachedConfiguration(dependencies.create("com.tom-roush:pdfbox-android:${libs.versions.pdfbox.get()}@aar"))
+val extractPdfboxTestAssets = tasks.register<Copy>("extractPdfboxTestAssets") {
+    from({ pdfboxAar.map { zipTree(it) } }) {
+        include("assets/**")
+        eachFile { path = path.removePrefix("assets/") }
+        includeEmptyDirs = false
+    }
+    into(pdfboxTestAssets)
+}
+android.sourceSets.getByName("test").resources.srcDir(pdfboxTestAssets.get().asFile)
+tasks.matching { it.name.endsWith("UnitTestJavaRes") }.configureEach { dependsOn(extractPdfboxTestAssets) }
 
 // The exported Room schema is committed so every migration can be reviewed against it.
 ksp {

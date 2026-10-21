@@ -5,6 +5,7 @@ import android.graphics.Canvas
 import android.graphics.Color
 import com.ganim.scanfire.data.FileStore
 import com.ganim.scanfire.imaging.Bitmaps
+import com.ganim.scanfire.ocr.OcrWord
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.pdmodel.PDPage
 import com.tom_roush.pdfbox.pdmodel.PDPageContentStream
@@ -36,12 +37,17 @@ data class PdfOptions(
 /** Builds export files in the cache. Nothing reaches shared storage until the user shares or saves. */
 class Exporter(private val files: FileStore) {
 
-    suspend fun pdf(name: String, images: List<File>, options: PdfOptions, out: File = files.freshExportFile("$name.pdf")): File =
+    /**
+     * [textLayers], when given, holds each page's OCR words; they're drawn as invisible text so the PDF is
+     * searchable and copyable.
+     */
+    suspend fun pdf(name: String, images: List<File>, options: PdfOptions, out: File = files.freshExportFile("$name.pdf"), textLayers: List<List<OcrWord>>? = null): File =
         withContext(Dispatchers.IO) {
             PDDocument().use { doc ->
                 doc.documentInformation.title = name
                 doc.documentInformation.creator = "ScanFire"
-                for (file in images) {
+                val layer = if (textLayers != null) TextLayer(doc) else null
+                for ((index, file) in images.withIndex()) {
                     val bitmap = Bitmaps.decode(file, options.maxEdge) ?: continue
                     val jpeg = jpegBytes(bitmap, options.quality)
                     val image = JPEGFactory.createFromByteArray(doc, jpeg)
@@ -49,7 +55,10 @@ class Exporter(private val files: FileStore) {
                     val page = PDPage(box)
                     doc.addPage(page)
                     val fit = fitRect(box.width, box.height, bitmap.width.toFloat(), bitmap.height.toFloat(), if (options.margin && options.pageSize != "fit") 24f else 0f)
-                    PDPageContentStream(doc, page).use { it.drawImage(image, fit[0], fit[1], fit[2], fit[3]) }
+                    PDPageContentStream(doc, page).use { cs ->
+                        cs.drawImage(image, fit[0], fit[1], fit[2], fit[3])
+                        textLayers?.getOrNull(index)?.let { layer?.draw(cs, it, fit[0], fit[1], fit[2], fit[3]) }
+                    }
                     bitmap.recycle()
                 }
                 doc.save(out)

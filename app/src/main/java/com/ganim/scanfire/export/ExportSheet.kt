@@ -13,7 +13,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Print
 import androidx.compose.material.icons.outlined.SaveAlt
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
+import androidx.compose.ui.Alignment
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -68,11 +71,12 @@ fun ExportEffects(vm: ExportViewModel) {
 fun ExportSheet(
     pageCount: Int,
     onDismiss: () -> Unit,
-    onExport: (ExportFormat, ExportAction, pageSize: String) -> Unit,
+    onExport: (ExportFormat, ExportAction, pageSize: String, searchable: Boolean) -> Unit,
 ) {
     val settings by appContainer().settings.settings.collectAsStateWithLifecycle(initialValue = null)
     var format by rememberSaveable { mutableStateOf(ExportFormat.Pdf) }
     var pageSize by remember(settings?.pdfPageSize) { mutableStateOf(settings?.pdfPageSize ?: "a4") }
+    var searchable by rememberSaveable { mutableStateOf(true) }
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -93,16 +97,23 @@ fun ExportSheet(
                         FilterChip(selected = pageSize == key, onClick = { pageSize = key }, label = { Text(label) })
                     }
                 }
+                Row(Modifier.fillMaxWidth().clickable { searchable = !searchable }, verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = searchable, onCheckedChange = { searchable = it })
+                    Column {
+                        Text("Searchable text", style = MaterialTheme.typography.bodyLarge)
+                        Text("Hidden OCR text so the PDF can be searched and copied. Takes a few seconds per page.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
             }
             Row(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { onExport(format, ExportAction.Share, pageSize) }, modifier = Modifier.weight(1f)) {
+                Button(onClick = { onExport(format, ExportAction.Share, pageSize, searchable) }, modifier = Modifier.weight(1f)) {
                     Icon(Icons.Outlined.Share, null, Modifier.size(18.dp)); Text("  Share")
                 }
-                OutlinedButton(onClick = { onExport(format, ExportAction.Save, pageSize) }, modifier = Modifier.weight(1f)) {
+                OutlinedButton(onClick = { onExport(format, ExportAction.Save, pageSize, searchable) }, modifier = Modifier.weight(1f)) {
                     Icon(Icons.Outlined.SaveAlt, null, Modifier.size(18.dp)); Text("  Save")
                 }
             }
-            OutlinedButton(onClick = { onExport(ExportFormat.Pdf, ExportAction.Print, pageSize) }, modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = { onExport(ExportFormat.Pdf, ExportAction.Print, pageSize, false) }, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Outlined.Print, null, Modifier.size(18.dp)); Text("  Print")
             }
         }

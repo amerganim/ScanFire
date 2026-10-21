@@ -35,6 +35,9 @@ enum class OcrScript(val key: String, val label: String) {
 
 class OcrLanguageMissing(val language: OcrLanguage.Tesseract) : Exception("${language.name} isn't downloaded yet")
 
+/** One recognised word and where it sits on the page, normalised to 0..1 of the page image. */
+data class OcrWord(val text: String, val left: Float, val top: Float, val right: Float, val bottom: Float)
+
 /**
  * On-device text recognition with two engines: ML Kit (models from Play services) and
  * Tesseract (models from [TessData]). Both run offline.
@@ -70,14 +73,48 @@ class OcrEngine(private val tessData: TessData) {
         is OcrLanguage.Tesseract -> recognizeTesseract(file, language)
     }
 
-    private suspend fun recognizeMlKit(bitmap: Bitmap, script: OcrScript): String {
-        val result = recognizer(script).process(InputImage.fromBitmap(bitmap, 0)).await()
-        return layout(result)
+    /** Words with positions, for the searchable-PDF text layer and for redaction. */
+    suspend fun words(file: File, language: OcrLanguage): List<OcrWord> = when (language) {
+        is OcrLanguage.MlKit -> {
+            val bitmap = withContext(Dispatchers.IO) { Bitmaps.decode(file, maxEdge = 2400) }
+            if (bitmap == null) emptyList() else try {
+                val w = bitmap.width.toFloat(); val h = bitmap.height.toFloat()
+                recognizer(language.script).process(InputImage.fromBitmap(bitmap, 0)).await()
+                    .textBlocks.flatMap { it.lines }.flatMap { it.elements }
+                    .mapNotNull { e -> e.boundingBox?.let { b -> OcrWord(e.text, b.left / w, b.top / h, b.right / w, b.bottom / h) } }
+            } finally {
+                bitmap.recycle()
+            }
+        }
+        is OcrLanguage.Tesseract -> withTesseract(language) { api ->
+            val bitmap = Bitmaps.decode(file, maxEdge = 2000) ?: return@withTesseract emptyList()
+            try {
+                val w = bitmap.width.toFloat(); val h = bitmap.height.toFloat()
+                api.setImage(bitmap)
+                api.utF8Text // runs recognition
+                val out = mutableListOf<OcrWord>()
+                val it = api.resultIterator ?: return@withTesseract emptyList()
+                try {
+                    it.begin()
+                    do {
+                        val text = it.getUTF8Text(TessBaseAPI.PageIteratorLevel.RIL_WORD)?.trim().orEmpty()
+                        val r = it.getBoundingRect(TessBaseAPI.PageIteratorLevel.RIL_WORD)
+                        if (text.isNotEmpty() && r != null) out += OcrWord(text, r.left / w, r.top / h, r.right / w, r.bottom / h)
+                    } while (it.next(TessBaseAPI.PageIteratorLevel.RIL_WORD))
+                } finally {
+                    it.delete()
+                }
+                out
+            } finally {
+                api.clear()
+                bitmap.recycle()
+            }
+        }
     }
 
-    private suspend fun recognizeTesseract(file: File, language: OcrLanguage.Tesseract): String {
+    /** Runs [block] with a TessBaseAPI loaded for [language] (plus English when available). */
+    private suspend fun <T> withTesseract(language: OcrLanguage.Tesseract, block: (TessBaseAPI) -> T): T {
         if (!tessData.has(language.code)) throw OcrLanguageMissing(language)
-        // Mixed pages (Bengali with English words, Arabic with numbers...) read better with English alongside.
         val languages = if (language.code != "eng" && tessData.has("eng")) "${language.code}+eng" else language.code
         return withContext(Dispatchers.Default) {
             tessLock.withLock {
@@ -90,16 +127,27 @@ class OcrEngine(private val tessData: TessData) {
                         tessLanguage = languages
                     }
                 }
-                // Tesseract is happiest with text ~30 px tall; 2000 px on the long edge is a good balance with speed.
-                val bitmap = Bitmaps.decode(file, maxEdge = 2000) ?: return@withLock ""
-                try {
-                    api.setImage(bitmap)
-                    api.utF8Text.orEmpty().replace(Regex("\n{3,}"), "\n\n").trim()
-                } finally {
-                    api.clear()
-                    bitmap.recycle()
-                }
+                block(api)
             }
+        }
+    }
+
+    private suspend fun recognizeMlKit(bitmap: Bitmap, script: OcrScript): String {
+        val result = recognizer(script).process(InputImage.fromBitmap(bitmap, 0)).await()
+        return layout(result)
+    }
+
+    // Mixed pages (Bengali with English words, Arabic with numbers...) read better with English alongside,
+    // which withTesseract adds when it's downloaded.
+    private suspend fun recognizeTesseract(file: File, language: OcrLanguage.Tesseract): String = withTesseract(language) { api ->
+        // Tesseract is happiest with text ~30 px tall; 2000 px on the long edge is a good balance with speed.
+        val bitmap = Bitmaps.decode(file, maxEdge = 2000) ?: return@withTesseract ""
+        try {
+            api.setImage(bitmap)
+            api.utF8Text.orEmpty().replace(Regex("\n{3,}"), "\n\n").trim()
+        } finally {
+            api.clear()
+            bitmap.recycle()
         }
     }
 

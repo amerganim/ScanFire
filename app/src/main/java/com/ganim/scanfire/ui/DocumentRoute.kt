@@ -18,6 +18,7 @@ import com.ganim.scanfire.document.DocumentAction
 import com.ganim.scanfire.document.DocumentScreen
 import com.ganim.scanfire.document.DocumentViewModel
 import com.ganim.scanfire.export.ExportEffects
+import com.ganim.scanfire.export.ExportFormat
 import com.ganim.scanfire.export.ExportSheet
 import com.ganim.scanfire.export.ExportViewModel
 import com.ganim.scanfire.scan.CaptureTarget
@@ -27,7 +28,7 @@ import com.ganim.scanfire.ui.common.containerViewModel
 @Composable
 fun DocumentRoute(docId: Long, nav: NavHostController, capture: Capture) {
     val vm = containerViewModel(key = "doc-$docId") { DocumentViewModel(docId, it.library, it.pages) }
-    val exportVm = containerViewModel(key = "export-$docId") { ExportViewModel(it.library, it.pages, it.settings, it.exporter) }
+    val exportVm = containerViewModel(key = "export-$docId") { ExportViewModel(it.library, it.pages, it.settings, it.exporter, it.ocr) }
     val state by vm.state.collectAsStateWithLifecycle()
     val exportBusy by exportVm.busy.collectAsStateWithLifecycle()
     var exportPages by rememberSaveable { mutableStateOf<LongArray?>(null) }
@@ -51,16 +52,16 @@ fun DocumentRoute(docId: Long, nav: NavHostController, capture: Capture) {
                 DocumentAction("Export selected", Icons.Outlined.IosShare) { exportPages = state.selection.toLongArray() },
             ),
         )
-        if (exportBusy) BusyOverlay("Preparing export…")
+        exportBusy?.let { BusyOverlay(it) }
     }
 
     exportPages?.let { ids ->
         ExportSheet(
             pageCount = if (ids.isEmpty()) state.pages.size else ids.size,
             onDismiss = { exportPages = null },
-        ) { format, action, pageSize ->
+        ) { format, action, pageSize, searchable ->
             exportPages = null
-            exportVm.export(docId, ids.toSet(), format, action, pageSize)
+            exportVm.export(docId, ids.toSet(), format, action, pageSize, searchable && format == ExportFormat.Pdf)
         }
     }
 }
