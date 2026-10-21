@@ -44,7 +44,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.ganim.scanfire.data.db.PageEntity
 import com.ganim.scanfire.document.ZoomableImage
@@ -64,6 +63,22 @@ object VaultSession {
     var unlocked by mutableStateOf(false)
 }
 
+/**
+ * Locks the vault when the activity stops (home button, app switch, screen off). This must watch the activity,
+ * not the screen: moving from the vault list to a document stops the list's own back-stack entry too.
+ */
+@Composable
+private fun LockVaultWhenAppStops() {
+    val activity = LocalContext.current.findActivity() as? androidx.lifecycle.LifecycleOwner ?: return
+    androidx.compose.runtime.DisposableEffect(activity) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) VaultSession.unlocked = false
+        }
+        activity.lifecycle.addObserver(observer)
+        onDispose { activity.lifecycle.removeObserver(observer) }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VaultScreen(onBack: () -> Unit, onOpen: (Long) -> Unit) {
@@ -71,7 +86,7 @@ fun VaultScreen(onBack: () -> Unit, onOpen: (Long) -> Unit) {
     val vault = appContainer().vault
     val docs by vault.documents().collectAsStateWithLifecycle(initialValue = null)
     var error by remember { mutableStateOf<String?>(null) }
-    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { VaultSession.unlocked = false }
+    LockVaultWhenAppStops()
 
     fun unlock() {
         val activity = context.findActivity() as? FragmentActivity ?: return
@@ -170,7 +185,7 @@ fun VaultDocumentScreen(docId: Long, onBack: () -> Unit, onMovedOut: (Long) -> U
     val container = appContainer()
     val vault = container.vault
     val scope = rememberCoroutineScope()
-    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { VaultSession.unlocked = false }
+    LockVaultWhenAppStops()
     // Locked while away: go back to the vault list, which asks again.
     LaunchedEffect(VaultSession.unlocked) { if (!VaultSession.unlocked) onBack() }
 
