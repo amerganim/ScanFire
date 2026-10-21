@@ -53,7 +53,7 @@ class TextLayer(
 object SystemFonts {
     private val dirs = listOf(File("/system/fonts"), File("/product/fonts"))
     private val coverage = mutableMapOf<File, (Int) -> Boolean>()
-    private val chosen = mutableMapOf<Character.UnicodeBlock?, File?>()
+    private val chosen = mutableMapOf<Character.UnicodeBlock?, File>()
 
     private val candidates: List<File> by lazy {
         val all = dirs.flatMap { it.listFiles { f -> f.extension.equals("ttf", true) }?.toList().orEmpty() }
@@ -65,11 +65,12 @@ object SystemFonts {
     fun coveringAll(text: String): File? {
         val codepoints = text.codePoints().toArray().filter { !Character.isWhitespace(it) }
         if (codepoints.isEmpty()) return null
-        // The block of the first letter-like character decides the font for the whole word.
-        val block = codepoints.firstOrNull { Character.isLetter(it) }?.let { Character.UnicodeBlock.of(it) }
-        chosen[block]?.let { f -> return f.takeIf { covers(it, codepoints) } }
+        // The script of the first letter (or, for a number like ১৯৭১, its first digit) picks the cache slot.
+        val block = Character.UnicodeBlock.of(codepoints.firstOrNull { Character.isLetter(it) } ?: codepoints.first())
+        chosen[block]?.let { f -> if (covers(f, codepoints)) return f }
+        // Not cached, or the cached font lacks a character in this word: search all installed fonts.
         val found = candidates.firstOrNull { covers(it, codepoints) }
-        chosen[block] = found
+        if (found != null) chosen[block] = found
         return found
     }
 
