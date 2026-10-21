@@ -133,6 +133,9 @@ class OcrViewModel(
         }
     }
 
+    /** Language code of [text] for read-aloud, or null when it can't be told. */
+    suspend fun detectLanguage(text: String): String? = runCatching { translator.detect(text) }.getOrNull()
+
     fun setTarget(code: String) = _state.update { it.copy(targetLanguage = code) }
 
     fun translate() {

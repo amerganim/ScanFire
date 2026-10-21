@@ -4,6 +4,9 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
+import androidx.compose.material.icons.automirrored.outlined.VolumeUp
+import androidx.compose.material.icons.outlined.StopCircle
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -63,6 +66,9 @@ fun OcrScreen(vm: OcrViewModel, onBack: () -> Unit, onManageLanguages: () -> Uni
     val state by vm.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val readAloud = remember { ReadAloud(context) }
+    DisposableEffect(readAloud) { onDispose { readAloud.shutdown() } }
+    val speaking by readAloud.speaking.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -123,6 +129,19 @@ fun OcrScreen(vm: OcrViewModel, onBack: () -> Unit, onManageLanguages: () -> Uni
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     AssistChip(onClick = { copy(context, state.text) }, label = { Text("Copy") }, leadingIcon = { Icon(Icons.Outlined.ContentCopy, null, Modifier.size(18.dp)) })
                     AssistChip(onClick = { Sharing.shareText(context, state.text, state.title) }, label = { Text("Share") }, leadingIcon = { Icon(Icons.Outlined.Share, null, Modifier.size(18.dp)) })
+                    AssistChip(
+                        enabled = state.text.isNotBlank(),
+                        onClick = {
+                            if (speaking) readAloud.stop() else scope.launch {
+                                val locale = ReadAloud.localeFor(state.language, vm.detectLanguage(state.text))
+                                readAloud.speak(state.text, locale) {
+                                    Toast.makeText(context, "No ${it.displayLanguage} voice installed. Add one in Android Settings → Text-to-speech.", Toast.LENGTH_LONG).show()
+                                }
+                            }
+                        },
+                        label = { Text(if (speaking) "Stop" else "Read aloud") },
+                        leadingIcon = { Icon(if (speaking) Icons.Outlined.StopCircle else Icons.AutoMirrored.Outlined.VolumeUp, null, Modifier.size(18.dp)) },
+                    )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     AssistChip(
