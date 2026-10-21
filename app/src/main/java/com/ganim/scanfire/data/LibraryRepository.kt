@@ -44,12 +44,14 @@ class LibraryRepository(
         db.folders().get(id)?.let { db.folders().update(it.copy(parentId = parentId)) }
     }
 
-    /** Deletes the folder, everything inside it, and the page files on disk. */
+    /** Deletes the folder and its subfolders; their documents go to the recycle bin (restorable to the top level). */
     suspend fun deleteFolder(id: Long) = withContext(Dispatchers.IO) {
         val folder = db.folders().get(id) ?: return@withContext
-        val docIds = db.documents().idsInFolders(db.folders().subtreeIds(id))
-        db.folders().delete(folder)
-        docIds.forEach(files::deleteDocument)
+        db.withTransaction {
+            val docIds = db.documents().idsInFolders(db.folders().subtreeIds(id))
+            if (docIds.isNotEmpty()) db.documents().trashOutOfFolder(docIds)
+            db.folders().delete(folder)
+        }
     }
 
     suspend fun createDocument(name: String? = null, folderId: Long? = null): Long =
@@ -63,17 +65,30 @@ class LibraryRepository(
         db.documents().get(id)?.let { db.documents().update(it.copy(folderId = folderId)) }
     }
 
-    suspend fun deleteDocument(id: Long) = withContext(Dispatchers.IO) {
-        db.documents().delete(id)
-        files.deleteDocument(id)
-    }
+    /** Moves to the recycle bin. */
+    suspend fun deleteDocument(id: Long) = db.documents().softDelete(listOf(id))
 
-    suspend fun deleteDocuments(ids: Collection<Long>) = withContext(Dispatchers.IO) {
+    suspend fun deleteDocuments(ids: Collection<Long>) = db.documents().softDelete(ids)
+
+    fun trash(): Flow<List<DocumentSummary>> = db.documents().observeTrash()
+
+    suspend fun restore(ids: Collection<Long>) = db.documents().restore(ids)
+
+    /** Gone for good: rows and page files. Used for failed imports, "Delete forever" and purging. */
+    suspend fun deleteForever(ids: Collection<Long>) = withContext(Dispatchers.IO) {
         db.withTransaction { ids.forEach { db.documents().delete(it) } }
         ids.forEach(files::deleteDocument)
     }
 
+    suspend fun emptyTrash() = deleteForever(db.documents().allTrashed())
+
+    /** Removes documents that have been in the bin for more than [days]. */
+    suspend fun purgeTrash(days: Int = TRASH_DAYS) =
+        deleteForever(db.documents().trashedBefore(System.currentTimeMillis() - days * 24L * 60 * 60 * 1000))
+
     companion object {
+        const val TRASH_DAYS = 30
+
         fun defaultName(time: Long = System.currentTimeMillis()): String =
             "Scan " + SimpleDateFormat("yyyy-MM-dd HH.mm", Locale.getDefault()).format(Date(time))
     }

@@ -35,6 +35,7 @@ import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.CreateNewFolder
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.DriveFileMove
 import androidx.compose.material.icons.outlined.Folder
@@ -77,6 +78,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import com.ganim.scanfire.data.LibraryRepository
 import com.ganim.scanfire.data.SortOrder
 import com.ganim.scanfire.data.db.DocumentSummary
 import com.ganim.scanfire.data.db.FolderSummary
@@ -104,6 +106,7 @@ fun LibraryScreen(
     onScan: (folderId: Long?) -> Unit,
     onImportImages: (folderId: Long?) -> Unit,
     onMerge: (docIds: List<Long>, folderId: Long?) -> Unit = { _, _ -> },
+    onOpenTrash: () -> Unit = {},
 ) {
     val vm = containerViewModel { LibraryViewModel(it.library, it.settings) }
     val state by vm.state.collectAsStateWithLifecycle()
@@ -143,6 +146,7 @@ fun LibraryScreen(
                     actions = {
                         IconButton(onClick = { vm.setSearching(true) }) { Icon(Icons.Outlined.Search, "Search") }
                         IconButton(onClick = { dialog = LibraryDialog.NewFolder }) { Icon(Icons.Outlined.CreateNewFolder, "New folder") }
+                        IconButton(onClick = onOpenTrash) { Icon(Icons.Outlined.DeleteOutline, "Recycle bin") }
                         SortMenu(state.settings.sortOrder, vm::setSort)
                         IconButton(onClick = { vm.toggleGrid() }) {
                             Icon(
@@ -211,7 +215,7 @@ fun LibraryScreen(
         }
         is LibraryDialog.DeleteFolder -> ConfirmDialog(
             "Delete folder?",
-            "\"${d.folder.name}\" and everything inside it will be deleted permanently.",
+            "\"${d.folder.name}\" and its subfolders will be deleted. Documents inside move to the Recycle bin for ${LibraryRepository.TRASH_DAYS} days.",
             onDismiss = { dialog = null },
         ) { vm.deleteFolder(d.folder.id); dialog = null }
         is LibraryDialog.RenameDocument -> TextInputDialog("Rename document", d.doc.name, onDismiss = { dialog = null }) {
@@ -222,7 +226,8 @@ fun LibraryScreen(
         }
         is LibraryDialog.DeleteDocuments -> ConfirmDialog(
             if (d.ids.size == 1) "Delete document?" else "Delete ${d.ids.size} documents?",
-            "This can't be undone.",
+            "You can restore from the Recycle bin for ${LibraryRepository.TRASH_DAYS} days.",
+            confirm = "Move to bin",
             onDismiss = { dialog = null },
         ) { vm.deleteDocuments(d.ids); dialog = null }
     }

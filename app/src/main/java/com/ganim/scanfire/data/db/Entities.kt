@@ -28,6 +28,8 @@ data class DocumentEntity(
     val folderId: Long? = null,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
+    /** Set when moved to the recycle bin; purged 30 days later. */
+    val deletedAt: Long? = null,
 )
 
 /**
@@ -75,6 +77,7 @@ data class DocumentSummary(
     val pageCount: Int,
     val coverFile: String?,
     val coverUpdatedAt: Long?,
+    val deletedAt: Long? = null,
 )
 
 data class FolderSummary(

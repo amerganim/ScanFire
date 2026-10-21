@@ -160,7 +160,7 @@ fun DocumentScreen(
         }
     }
     if (confirmDeleteDoc) {
-        ConfirmDialog("Delete document?", "All ${state.pages.size} pages will be deleted permanently.", onDismiss = { confirmDeleteDoc = false }) {
+        ConfirmDialog("Delete document?", "It moves to the Recycle bin, where you can restore it for 30 days.", confirm = "Move to bin", onDismiss = { confirmDeleteDoc = false }) {
             confirmDeleteDoc = false
             vm.deleteDocument(onBack)
         }
@@ -169,7 +169,7 @@ fun DocumentScreen(
         val all = state.selection.size == state.pages.size
         ConfirmDialog(
             if (state.selection.size == 1) "Delete page?" else "Delete ${state.selection.size} pages?",
-            if (all) "Every page is selected, so the whole document will be deleted." else "This can't be undone.",
+            if (all) "Every page is selected, so the whole document moves to the Recycle bin." else "Deleted pages can't be brought back.",
             onDismiss = { confirmDeletePages = false },
         ) {
             confirmDeletePages = false

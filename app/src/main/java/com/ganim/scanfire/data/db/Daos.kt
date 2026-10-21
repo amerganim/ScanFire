@@ -28,7 +28,7 @@ interface FolderDao {
     @Query(
         """
         SELECT f.id, f.name, f.parentId, f.createdAt,
-          (SELECT COUNT(*) FROM documents d WHERE d.folderId = f.id) +
+          (SELECT COUNT(*) FROM documents d WHERE d.folderId = f.id AND d.deletedAt IS NULL) +
           (SELECT COUNT(*) FROM folders c WHERE c.parentId = f.id) AS itemCount
         FROM folders f
         WHERE (:parentId IS NULL AND f.parentId IS NULL) OR f.parentId = :parentId
@@ -78,7 +78,7 @@ interface DocumentDao {
           (SELECT p.imageFile FROM pages p WHERE p.documentId = d.id ORDER BY p.position LIMIT 1) AS coverFile,
           (SELECT p.updatedAt FROM pages p WHERE p.documentId = d.id ORDER BY p.position LIMIT 1) AS coverUpdatedAt
         FROM documents d
-        WHERE (:folderId IS NULL AND d.folderId IS NULL) OR d.folderId = :folderId
+        WHERE ((:folderId IS NULL AND d.folderId IS NULL) OR d.folderId = :folderId) AND d.deletedAt IS NULL
         """,
     )
     fun observeInFolder(folderId: Long?): Flow<List<DocumentSummary>>
@@ -91,8 +91,8 @@ interface DocumentDao {
           (SELECT p.imageFile FROM pages p WHERE p.documentId = d.id ORDER BY p.position LIMIT 1) AS coverFile,
           (SELECT p.updatedAt FROM pages p WHERE p.documentId = d.id ORDER BY p.position LIMIT 1) AS coverUpdatedAt
         FROM documents d
-        WHERE d.name LIKE '%' || :query || '%'
-           OR EXISTS (SELECT 1 FROM pages p WHERE p.documentId = d.id AND p.ocrText LIKE '%' || :query || '%')
+        WHERE d.deletedAt IS NULL AND (d.name LIKE '%' || :query || '%'
+           OR EXISTS (SELECT 1 FROM pages p WHERE p.documentId = d.id AND p.ocrText LIKE '%' || :query || '%'))
         """,
     )
     fun search(query: String): Flow<List<DocumentSummary>>
@@ -103,10 +103,38 @@ interface DocumentDao {
           (SELECT COUNT(*) FROM pages p WHERE p.documentId = d.id) AS pageCount,
           (SELECT p.imageFile FROM pages p WHERE p.documentId = d.id ORDER BY p.position LIMIT 1) AS coverFile,
           (SELECT p.updatedAt FROM pages p WHERE p.documentId = d.id ORDER BY p.position LIMIT 1) AS coverUpdatedAt
-        FROM documents d ORDER BY d.updatedAt DESC
+        FROM documents d WHERE d.deletedAt IS NULL ORDER BY d.updatedAt DESC
         """,
     )
     fun observeAll(): Flow<List<DocumentSummary>>
+
+    @Query(
+        """
+        SELECT d.id, d.name, d.folderId, d.createdAt, d.updatedAt,
+          (SELECT COUNT(*) FROM pages p WHERE p.documentId = d.id) AS pageCount,
+          (SELECT p.imageFile FROM pages p WHERE p.documentId = d.id ORDER BY p.position LIMIT 1) AS coverFile,
+          (SELECT p.updatedAt FROM pages p WHERE p.documentId = d.id ORDER BY p.position LIMIT 1) AS coverUpdatedAt,
+          d.deletedAt
+        FROM documents d WHERE d.deletedAt IS NOT NULL ORDER BY d.deletedAt DESC
+        """,
+    )
+    fun observeTrash(): Flow<List<DocumentSummary>>
+
+    @Query("UPDATE documents SET deletedAt = :time WHERE id IN (:ids)")
+    suspend fun softDelete(ids: Collection<Long>, time: Long = System.currentTimeMillis())
+
+    /** Restored documents whose folder is gone land at the top level. */
+    @Query("UPDATE documents SET deletedAt = NULL, folderId = CASE WHEN folderId IN (SELECT id FROM folders) THEN folderId ELSE NULL END WHERE id IN (:ids)")
+    suspend fun restore(ids: Collection<Long>)
+
+    @Query("SELECT id FROM documents WHERE deletedAt IS NOT NULL AND deletedAt < :before")
+    suspend fun trashedBefore(before: Long): List<Long>
+
+    @Query("SELECT id FROM documents WHERE deletedAt IS NOT NULL")
+    suspend fun allTrashed(): List<Long>
+
+    @Query("UPDATE documents SET folderId = NULL, deletedAt = :time WHERE id IN (:ids)")
+    suspend fun trashOutOfFolder(ids: Collection<Long>, time: Long = System.currentTimeMillis())
 }
 
 @Dao

@@ -68,6 +68,7 @@ import com.ganim.scanfire.edit.ReorderPagesScreen
 import com.ganim.scanfire.document.DocumentViewModel
 import com.ganim.scanfire.document.PageViewerScreen
 import com.ganim.scanfire.library.LibraryScreen
+import com.ganim.scanfire.library.TrashScreen
 import com.ganim.scanfire.scan.CaptureTarget
 import com.ganim.scanfire.scan.CaptureViewModel
 import com.ganim.scanfire.scan.ImportReviewScreen
@@ -94,6 +95,7 @@ object Routes {
     fun codes(scan: Boolean) = "codes?scan=$scan"
     const val IMPORT_REVIEW = "import-review"
     const val OCR_LANGUAGES = "ocr-languages"
+    const val TRASH = "trash"
     const val REDACT = "redact/{pageId}"
     fun redact(pageId: Long) = "redact/$pageId"
     const val SIGN = "sign/{pageId}"
@@ -176,6 +178,7 @@ fun ScanFireRoot(incoming: MutableStateFlow<Incoming?> = MutableStateFlow(null))
                         onScan = { capture.scan(CaptureTarget.NewDocument(it)) },
                         onImportImages = { capture.pickImages(CaptureTarget.NewDocument(it)) },
                         onMerge = { ids, folder -> captureVm.mergeDocuments(ids, folder) { nav.navigate(Routes.doc(it)) } },
+                        onOpenTrash = { nav.navigate(Routes.TRASH) },
                     )
                 }
                 composable(Tab.Tools.route) {
@@ -223,6 +226,7 @@ fun ScanFireRoot(incoming: MutableStateFlow<Incoming?> = MutableStateFlow(null))
                         ),
                     )
                 }
+                composable(Routes.TRASH) { TrashScreen(onBack = { nav.popBackStack() }) }
                 composable(Routes.OCR_LANGUAGES) { OcrLanguagesScreen(onBack = { nav.popBackStack() }) }
                 composable(Routes.IMPORT_REVIEW) {
                     ImportReviewScreen(captureVm, onNewDocument = { nav.navigate(Routes.doc(it)) }, onLeave = { nav.popBackStack() })

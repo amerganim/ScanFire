@@ -2,6 +2,10 @@ package com.ganim.scanfire
 
 import android.app.Application
 import com.ganim.scanfire.data.Backup
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 
 class ScanFireApp : Application() {
@@ -15,5 +19,7 @@ class ScanFireApp : Application() {
         Backup.applyPendingRestore(this)
         PDFBoxResourceLoader.init(applicationContext)
         container = AppContainer(this)
+        // Documents in the recycle bin for 30 days are removed for good.
+        CoroutineScope(SupervisorJob() + Dispatchers.IO).launch { runCatching { container.library.purgeTrash() } }
     }
 }

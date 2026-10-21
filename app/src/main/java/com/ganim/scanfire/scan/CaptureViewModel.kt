@@ -65,7 +65,7 @@ class CaptureViewModel(
         val docId = library.createDocument(folderId = folderId)
         val added = pages.addImages(docId, uris, filterFor(fromScanner))
         if (added == 0) {
-            library.deleteDocument(docId)
+            library.deleteForever(listOf(docId))
             _messages.send(UNREADABLE)
         } else {
             if (added < uris.size) _messages.send("${uris.size - added} of ${uris.size} images couldn't be read")
@@ -129,7 +129,7 @@ class CaptureViewModel(
             }
             val added = pages.addBitmaps(docId, straightened, filter)
             when {
-                added == 0 && review.target is CaptureTarget.NewDocument -> { library.deleteDocument(docId); _messages.send(UNREADABLE) }
+                added == 0 && review.target is CaptureTarget.NewDocument -> { library.deleteForever(listOf(docId)); _messages.send(UNREADABLE) }
                 added == 0 -> _messages.send(UNREADABLE)
                 review.target is CaptureTarget.NewDocument -> onNewDocument(docId)
             }
@@ -168,7 +168,7 @@ class CaptureViewModel(
             }
             onDone(docId)
         } catch (e: Exception) {
-            library.deleteDocument(docId)
+            library.deleteForever(listOf(docId))
             if (e is CancellationException) throw e
             onError(e)
         }
@@ -189,7 +189,7 @@ class CaptureViewModel(
         val halves = uris.asSequence()
             .mapNotNull { Bitmaps.decode(context.contentResolver, it) }
             .flatMap { PageComposer.splitSpread(it).asSequence() }
-        if (pages.addBitmaps(docId, halves) == 0) library.deleteDocument(docId) else onDone(docId)
+        if (pages.addBitmaps(docId, halves) == 0) library.deleteForever(listOf(docId)) else onDone(docId)
     }
 
     /** Merges library documents into a new one, in the order given. */
