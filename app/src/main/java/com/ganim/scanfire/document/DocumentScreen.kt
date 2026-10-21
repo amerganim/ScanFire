@@ -22,12 +22,10 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.AddPhotoAlternate
-import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.outlined.SelectAll
-import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -48,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
@@ -55,7 +54,12 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.ganim.scanfire.data.db.PageEntity
+import com.ganim.scanfire.ui.common.BarItem
 import com.ganim.scanfire.ui.common.ConfirmDialog
+import com.ganim.scanfire.ui.common.InkActionBar
+import com.ganim.scanfire.ui.common.formatDate
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.material.icons.outlined.DocumentScanner
 import com.ganim.scanfire.ui.common.TextInputDialog
 
 /** Extra actions contributed by later phases (export, OCR, PDF tools) without this screen knowing them. */
@@ -99,9 +103,8 @@ fun DocumentScreen(
                 )
             } else {
                 TopAppBar(
-                    title = {
-                        Text(state.document?.name.orEmpty(), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    },
+                    title = {},
+                    colors = androidx.compose.material3.TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
                     navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
                     actions = {
                         IconButton(onClick = { renaming = true }) { Icon(Icons.Outlined.Edit, "Rename") }
@@ -129,21 +132,39 @@ fun DocumentScreen(
         },
         bottomBar = {
             if (!selecting) {
-                BottomAppBar {
-                    BarButton("Scan", Icons.Outlined.CameraAlt, onScanMore)
-                    BarButton("Import", Icons.Outlined.AddPhotoAlternate, onImportMore)
-                    bottomActions.forEach { BarButton(it.label, it.icon, it.onClick) }
-                }
+                InkActionBar(
+                    bottomActions.map { BarItem(it.label, it.icon, onClick = it.onClick) } +
+                        BarItem("Scan more", Icons.Outlined.DocumentScanner, highlighted = true, onClick = onScanMore),
+                )
             }
         },
     ) { padding ->
         LazyVerticalGrid(
-            columns = GridCells.Adaptive(110.dp),
-            contentPadding = PaddingValues(12.dp),
+            columns = GridCells.Adaptive(104.dp),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 4.dp, bottom = 20.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
             modifier = Modifier.padding(padding).fillMaxSize(),
         ) {
+            if (!selecting) item(span = { GridItemSpan(maxLineSpan) }) {
+                val doc = state.document
+                val context = androidx.compose.ui.platform.LocalContext.current
+                Column(Modifier.padding(bottom = 6.dp)) {
+                    Text(
+                        doc?.name.orEmpty(),
+                        style = MaterialTheme.typography.headlineSmall,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.clip(RoundedCornerShape(8.dp)).combinedClickableCompat { renaming = true },
+                    )
+                    val count = state.pages.size
+                    Text(
+                        (if (count == 1) "1 page" else "$count pages") + (doc?.let { " · " + formatDate(context, it.updatedAt) } ?: ""),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
             itemsIndexed(state.pages, key = { _, p -> p.id }) { index, page ->
                 PageTile(
                     page = page,
@@ -153,6 +174,20 @@ fun DocumentScreen(
                     onClick = { if (selecting) vm.toggleSelect(page.id) else onOpenPage(index) },
                     onLongClick = { vm.toggleSelect(page.id) },
                 )
+            }
+            if (!selecting) item {
+                Surface(
+                    onClick = onImportMore,
+                    shape = MaterialTheme.shapes.medium,
+                    color = Color.Transparent,
+                    border = androidx.compose.foundation.BorderStroke(1.5.dp, MaterialTheme.colorScheme.outlineVariant),
+                    modifier = Modifier.fillMaxWidth().aspectRatio(0.72f),
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+                        Icon(Icons.Outlined.AddPhotoAlternate, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("Add photos", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 6.dp))
+                    }
+                }
             }
         }
     }
@@ -182,17 +217,6 @@ fun DocumentScreen(
     }
 }
 
-@Composable
-private fun androidx.compose.foundation.layout.RowScope.BarButton(label: String, icon: androidx.compose.ui.graphics.vector.ImageVector, onClick: () -> Unit) {
-    Column(
-        Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).combinedClickableCompat(onClick).padding(vertical = 4.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Icon(icon, null)
-        Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1)
-    }
-}
-
 @OptIn(ExperimentalFoundationApi::class)
 private fun Modifier.combinedClickableCompat(onClick: () -> Unit) = combinedClickable(onClick = onClick)
 
@@ -203,9 +227,10 @@ private fun PageTile(page: PageEntity, number: Int, selected: Boolean, file: jav
         Modifier
             .fillMaxWidth()
             .aspectRatio(0.72f)
-            .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .then(if (selected) Modifier.border(3.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp)) else Modifier)
+            .shadow(1.dp, RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .then(if (selected) Modifier.border(3.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp)) else Modifier)
             .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
         AsyncImage(model = file, contentDescription = "Page $number", contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().padding(4.dp))

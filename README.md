@@ -14,7 +14,7 @@ runs on the phone using free, on-device Google ML Kit models and open-source lib
 - QR code and barcode scanner with local history
 
 **Edit**
-- Filters: Original, Enhance, Magic color (default for imports: whitens paper, removes shadows and colour tints, sharpens text), Grayscale, B&W
+- Filters: Original, Clear scan (default for imports: whitens paper, removes shadows and colour tints, sharpens text), Bright, Grey, B&W
 - Crop, rotate, reorder by drag, delete, add pages; every edit can be redone from the original
 - Sign pages with a drawn signature
 

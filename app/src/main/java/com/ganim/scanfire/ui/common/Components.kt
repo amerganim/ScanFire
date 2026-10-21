@@ -195,4 +195,4 @@ fun InkActionBar(items: List<BarItem>, modifier: Modifier = Modifier) {
 
 /** Image work (viewing, editing, cropping, signing) happens on a dark "studio" regardless of the app theme. */
 @Composable
-fun DarkStudio(content: @Composable () -> Unit) = ScanFireTheme(themeMode = 2, content = content)
+fun DarkStudio(content: @Composable () -> Unit) = ScanFireTheme(themeMode = 2, studio = true, content = content)

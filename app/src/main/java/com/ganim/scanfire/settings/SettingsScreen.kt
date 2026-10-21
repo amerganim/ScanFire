@@ -50,6 +50,19 @@ import com.ganim.scanfire.scan.findActivity
 import com.ganim.scanfire.tools.formatSize
 import com.ganim.scanfire.ui.BusyOverlay
 import com.ganim.scanfire.ui.common.appContainer
+import com.ganim.scanfire.ui.common.GroupCard
+import com.ganim.scanfire.ui.common.GroupDivider
+import com.ganim.scanfire.ui.common.GroupRow
+import com.ganim.scanfire.ui.common.IconTile
+import com.ganim.scanfire.ui.common.ScreenHeader
+import com.ganim.scanfire.ui.common.SectionLabel
+import com.ganim.scanfire.ui.common.Tint
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Surface
 import com.ganim.scanfire.security.AppLock
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -90,41 +103,63 @@ fun SettingsScreen(onManageLanguages: () -> Unit) {
     val restoreSource = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> confirmRestore = uri }
 
     Box(Modifier.fillMaxSize()) {
-        Scaffold(topBar = { TopAppBar(title = { Text("Settings") }) }) { padding ->
-            Column(Modifier.padding(padding).fillMaxSize().verticalScroll(rememberScrollState())) {
-                Header("Appearance")
-                val themes = listOf(Choice("0", "Follow system"), Choice("1", "Light"), Choice("2", "Dark"))
-                ChoiceRow("Theme", themes.first { it.key == settings.themeMode.toString() }.label) {
-                    picker = Triple("Theme", themes, settings.themeMode.toString() to { k -> scope.launch { repo.setTheme(k.toInt()) } })
-                }
-                SwitchRow("Wallpaper colours", "Use Android's dynamic colours (Android 12+)", settings.dynamicColor) { scope.launch { repo.setDynamicColor(it) } }
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(bottom = 28.dp)) {
+            ScreenHeader("Settings")
+            PrivacyBanner()
 
-                Header("Scanning")
-                val filters = PageFilter.entries.map { Choice(it.key, it.label) }
-                ChoiceRow("Filter for imported photos", PageFilter.of(settings.defaultFilter).label) {
-                    picker = Triple("Default filter", filters, settings.defaultFilter to { k -> scope.launch { repo.setDefaultFilter(k) } })
+            SectionLabel("Appearance")
+            GroupCard {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text("Theme", style = MaterialTheme.typography.bodyLarge)
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                        listOf("Automatic", "Light", "Dark").forEachIndexed { i, label ->
+                            SegmentedButton(
+                                selected = settings.themeMode == i,
+                                onClick = { scope.launch { repo.setTheme(i) } },
+                                shape = SegmentedButtonDefaults.itemShape(i, 3),
+                            ) { Text(label) }
+                        }
+                    }
                 }
+                GroupDivider()
+                SwitchRow("Wallpaper colours", "Use your phone's colours (Android 12+)", settings.dynamicColor) { scope.launch { repo.setDynamicColor(it) } }
+            }
+
+            SectionLabel("Scanning")
+            GroupCard {
+                val filters = PageFilter.entries.map { Choice(it.key, it.label) }
+                GroupRow("Look for imported photos", PageFilter.of(settings.defaultFilter).label, onClick = {
+                    picker = Triple("Look for imported photos", filters, settings.defaultFilter to { k -> scope.launch { repo.setDefaultFilter(k) } })
+                })
+                GroupDivider()
                 val installed by container.tessData.installed.collectAsStateWithLifecycle()
                 val languages = (listOf<OcrLanguage>(OcrLanguage.Auto) + OcrLanguage.mlKit + OcrLanguage.tesseract.filter { it.code in installed }).map { Choice(it.key, it.label) }
-                ChoiceRow("Text recognition language", OcrLanguage.of(settings.ocrScript).label) {
-                    picker = Triple("Text recognition language", languages, settings.ocrScript to { k -> scope.launch { repo.setOcrScript(k) } })
-                }
-                ListItem(
-                    headlineContent = { Text("Download more languages") },
-                    supportingContent = { Text("${OcrLanguage.tesseract.size} more, including Bengali, Arabic, Urdu, Tamil, Thai and Russian · ${installed.size} downloaded") },
-                    modifier = Modifier.clickable(onClick = onManageLanguages),
+                GroupRow("Text language", OcrLanguage.of(settings.ocrScript).label, onClick = {
+                    picker = Triple("Text language", languages, settings.ocrScript to { k -> scope.launch { repo.setOcrScript(k) } })
+                })
+                GroupDivider()
+                GroupRow(
+                    "More languages",
+                    "${OcrLanguage.tesseract.size} more, like Bengali, Arabic, Tamil and Russian · ${installed.size} downloaded",
+                    onClick = onManageLanguages,
                 )
+            }
 
-                Header("PDF and export")
-                val sizes = listOf(Choice("a4", "A4"), Choice("letter", "Letter"), Choice("fit", "Fit to image"))
-                ChoiceRow("Default page size", sizes.first { it.key == settings.pdfPageSize }.label) {
+            SectionLabel("PDF and sharing")
+            GroupCard {
+                val sizes = listOf(Choice("a4", "A4"), Choice("letter", "Letter"), Choice("fit", "Same as the photo"))
+                GroupRow("Page size", sizes.first { it.key == settings.pdfPageSize }.label, onClick = {
                     picker = Triple("Page size", sizes, settings.pdfPageSize to { k -> scope.launch { repo.setPdfPageSize(k) } })
-                }
-                SwitchRow("Page margins", "White border around each page in PDFs", settings.pdfMargin) { scope.launch { repo.setPdfMargin(it) } }
+                })
+                GroupDivider()
+                SwitchRow("Page margins", "White border around each page", settings.pdfMargin) { scope.launch { repo.setPdfMargin(it) } }
+                GroupDivider()
                 QualityRow(settings.exportQuality) { scope.launch { repo.setExportQuality(it) } }
+            }
 
-                Header("Privacy and security")
-                SwitchRow("App lock", "Ask for fingerprint, face or screen lock when opening ScanFire", settings.appLock) { on ->
+            SectionLabel("Privacy and security")
+            GroupCard {
+                SwitchRow("App lock", "Fingerprint, face or screen lock to open ScanFire", settings.appLock) { on ->
                     val activity = context.findActivity() as? FragmentActivity ?: return@SwitchRow
                     if (on && !AppLock.available(activity)) {
                         Toast.makeText(context, "Set up a screen lock or fingerprint on your phone first", Toast.LENGTH_LONG).show()
@@ -133,27 +168,26 @@ fun SettingsScreen(onManageLanguages: () -> Unit) {
                         AppLock.prompt(activity, if (on) "Turn on app lock" else "Turn off app lock", onSuccess = { scope.launch { repo.setAppLock(on) } })
                     }
                 }
+            }
 
-                Header("Backup")
-                ListItem(
-                    headlineContent = { Text("Back up everything") },
-                    supportingContent = { Text("One ZIP with all documents (${formatSize(storage)}). Save it to Drive, a computer or a USB stick.") },
-                    modifier = Modifier.clickable {
-                        backupTarget.launch("ScanFire-backup-" + SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) + ".zip")
-                    },
-                )
-                ListItem(
-                    headlineContent = { Text("Restore from backup") },
-                    supportingContent = { Text("Replaces everything in ScanFire with the backup's contents") },
-                    modifier = Modifier.clickable { restoreSource.launch(arrayOf("application/zip", "application/octet-stream")) },
-                )
+            SectionLabel("Backup")
+            GroupCard {
+                GroupRow("Back up everything", "One ZIP file with all documents (${formatSize(storage)}). Keep it on Drive, a computer or a USB stick.", onClick = {
+                    backupTarget.launch("ScanFire-backup-" + SimpleDateFormat("yyyy-MM-dd", Locale.US).format(Date()) + ".zip")
+                })
+                GroupDivider()
+                GroupRow("Restore from backup", "Replaces everything in ScanFire with the backup", onClick = {
+                    restoreSource.launch(arrayOf("application/zip", "application/octet-stream"))
+                })
+            }
 
-                Header("About")
-                ListItem(
-                    headlineContent = { Text("ScanFire ${BuildConfig.VERSION_NAME}") },
-                    supportingContent = { Text("Free and open source. No ads, no account, no tracking.") },
-                    modifier = Modifier.clickable { showAbout = true },
-                )
+            SectionLabel("About")
+            GroupCard {
+                GroupRow("ScanFire ${BuildConfig.VERSION_NAME}", "Free and open source. No ads, no account, no tracking.", onClick = { showAbout = true })
+                GroupDivider()
+                GroupRow("Privacy policy", null, onClick = {
+                    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, android.net.Uri.parse(PRIVACY_POLICY_URL))) }
+                })
             }
         }
         busy?.let { BusyOverlay(it) }
@@ -223,27 +257,28 @@ fun SettingsScreen(onManageLanguages: () -> Unit) {
     }
 }
 
+const val PRIVACY_POLICY_URL = "https://amerganim.github.io/scanfire-privacy/"
+
 @Composable
-private fun Header(text: String) {
-    Column {
-        HorizontalDivider(Modifier.padding(top = 8.dp))
-        Text(text, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 4.dp))
+private fun PrivacyBanner() {
+    Surface(
+        color = MaterialTheme.colorScheme.secondary,
+        contentColor = MaterialTheme.colorScheme.onSecondary,
+        shape = MaterialTheme.shapes.large,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 4.dp),
+    ) {
+        Row(Modifier.padding(18.dp), horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
+            IconTile(Icons.Outlined.Shield, Tint.Ember, size = 44)
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text("Your documents stay on this phone", style = MaterialTheme.typography.titleSmall)
+                Text("No account, no cloud, no ads. Nothing is uploaded.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSecondary.copy(alpha = 0.75f))
+            }
+        }
     }
 }
-
-@Composable
-private fun ChoiceRow(title: String, value: String, onClick: () -> Unit) {
-    ListItem(headlineContent = { Text(title) }, supportingContent = { Text(value) }, modifier = Modifier.clickable(onClick = onClick))
-}
-
 @Composable
 private fun SwitchRow(title: String, subtitle: String, checked: Boolean, onChange: (Boolean) -> Unit) {
-    ListItem(
-        headlineContent = { Text(title) },
-        supportingContent = { Text(subtitle) },
-        trailingContent = { Switch(checked = checked, onCheckedChange = onChange) },
-        modifier = Modifier.clickable { onChange(!checked) },
-    )
+    GroupRow(title, subtitle, onClick = { onChange(!checked) }, trailing = { Switch(checked = checked, onCheckedChange = onChange) })
 }
 
 @Composable

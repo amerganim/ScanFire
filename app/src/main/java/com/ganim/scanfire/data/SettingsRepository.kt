@@ -30,6 +30,8 @@ data class Settings(
     val appLock: Boolean = false,
     /** OCR language key (see OcrLanguage); "auto" picks the best of Latin and the downloaded languages. */
     val ocrScript: String = "auto",
+    /** The first-run welcome has been seen. */
+    val welcomed: Boolean = false,
 )
 
 class SettingsRepository(private val context: Context) {
@@ -44,6 +46,7 @@ class SettingsRepository(private val context: Context) {
         val margin = booleanPreferencesKey("pdf_margin")
         val lock = booleanPreferencesKey("app_lock")
         val ocrScript = stringPreferencesKey("ocr_script")
+        val welcomed = booleanPreferencesKey("welcomed")
     }
 
     val settings: Flow<Settings> = context.dataStore.data.map { it.toSettings() }
@@ -59,6 +62,7 @@ class SettingsRepository(private val context: Context) {
         pdfMargin = this[Keys.margin] ?: true,
         appLock = this[Keys.lock] ?: false,
         ocrScript = this[Keys.ocrScript] ?: "auto",
+        welcomed = this[Keys.welcomed] ?: false,
     )
 
     suspend fun setSort(order: SortOrder) = context.dataStore.edit { it[Keys.sort] = order.name }
@@ -71,4 +75,5 @@ class SettingsRepository(private val context: Context) {
     suspend fun setPdfMargin(on: Boolean) = context.dataStore.edit { it[Keys.margin] = on }
     suspend fun setAppLock(on: Boolean) = context.dataStore.edit { it[Keys.lock] = on }
     suspend fun setOcrScript(script: String) = context.dataStore.edit { it[Keys.ocrScript] = script }
+    suspend fun setWelcomed() = context.dataStore.edit { it[Keys.welcomed] = true }
 }

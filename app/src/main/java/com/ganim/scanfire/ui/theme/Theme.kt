@@ -153,6 +153,8 @@ private val AppShapes = Shapes(
 fun ScanFireTheme(
     themeMode: Int = 0,
     dynamicColor: Boolean = false,
+    /** True for a dark "studio" screen nested in the app theme; while any is shown the status bar icons stay light. */
+    studio: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val dark = when (themeMode) {
@@ -168,7 +170,33 @@ fun ScanFireTheme(
         dark -> DarkColors
         else -> LightColors
     }
+    val view = androidx.compose.ui.platform.LocalView.current
+    if (!view.isInEditMode) {
+        if (studio) {
+            androidx.compose.runtime.DisposableEffect(Unit) {
+                SystemBars.studios++
+                SystemBars.apply(view)
+                onDispose { SystemBars.studios--; SystemBars.apply(view) }
+            }
+        } else {
+            androidx.compose.runtime.SideEffect { SystemBars.appDark = dark; SystemBars.apply(view) }
+        }
+    }
     androidx.compose.runtime.CompositionLocalProvider(LocalIsDark provides dark) {
         MaterialTheme(colorScheme = colors, typography = AppTypography, shapes = AppShapes, content = content)
+    }
+}
+
+/** Status bar icon colour: dark icons on the light app theme, light icons while a studio screen is on top. */
+private object SystemBars {
+    var studios = 0
+    var appDark = false
+
+    fun apply(view: android.view.View) {
+        val window = (view.context as? android.app.Activity)?.window ?: return
+        androidx.core.view.WindowCompat.getInsetsController(window, view).apply {
+            isAppearanceLightStatusBars = studios == 0 && !appDark
+            isAppearanceLightNavigationBars = studios == 0 && !appDark
+        }
     }
 }

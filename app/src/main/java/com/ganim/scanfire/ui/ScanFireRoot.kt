@@ -82,6 +82,7 @@ import com.ganim.scanfire.scan.ImportReviewScreen
 import com.ganim.scanfire.scan.rememberDocumentScanner
 import com.ganim.scanfire.scan.rememberImagePicker
 import com.ganim.scanfire.ui.common.containerViewModel
+import com.ganim.scanfire.ui.common.DarkStudio
 
 enum class Tab(val route: String, val label: String, val icon: ImageVector) {
     Documents("documents", "Documents", Icons.Outlined.Description),
@@ -225,7 +226,7 @@ fun ScanFireRoot(incoming: MutableStateFlow<Incoming?> = MutableStateFlow(null))
                 composable(Routes.EDIT, arguments = listOf(navArgument("pageId") { type = NavType.LongType })) { entry ->
                     val pageId = entry.arguments!!.getLong("pageId")
                     val vm = containerViewModel(key = "edit-$pageId") { PageEditViewModel(pageId, it.pages) }
-                    PageEditScreen(vm, onClose = { nav.popBackStack() })
+                    DarkStudio { PageEditScreen(vm, onClose = { nav.popBackStack() }) }
                 }
                 composable(
                     Routes.PAGE,
@@ -233,7 +234,7 @@ fun ScanFireRoot(incoming: MutableStateFlow<Incoming?> = MutableStateFlow(null))
                 ) { entry ->
                     val docId = entry.arguments!!.getLong("docId")
                     val vm = containerViewModel(key = "doc-$docId") { DocumentViewModel(docId, it.library, it.pages) }
-                    PageViewerScreen(
+                    DarkStudio { PageViewerScreen(
                         vm = vm,
                         startIndex = entry.arguments!!.getInt("index"),
                         onBack = { nav.popBackStack() },
@@ -243,7 +244,7 @@ fun ScanFireRoot(incoming: MutableStateFlow<Incoming?> = MutableStateFlow(null))
                             PageAction("Sign", Icons.Outlined.Draw) { nav.navigate(Routes.sign(it.id)) },
                             PageAction("Redact", Icons.Outlined.HideSource) { nav.navigate(Routes.redact(it.id)) },
                         ),
-                    )
+                    ) }
                 }
                 composable(Routes.CARD, arguments = listOf(navArgument("docId") { type = NavType.LongType })) { entry ->
                     CardScreen(entry.arguments!!.getLong("docId"), onBack = { nav.popBackStack() })
@@ -253,16 +254,16 @@ fun ScanFireRoot(incoming: MutableStateFlow<Incoming?> = MutableStateFlow(null))
                 composable(Routes.TRASH) { TrashScreen(onBack = { nav.popBackStack() }) }
                 composable(Routes.OCR_LANGUAGES) { OcrLanguagesScreen(onBack = { nav.popBackStack() }) }
                 composable(Routes.IMPORT_REVIEW) {
-                    ImportReviewScreen(captureVm, onNewDocument = { nav.navigate(Routes.doc(it)) }, onLeave = { nav.popBackStack() })
+                    DarkStudio { ImportReviewScreen(captureVm, onNewDocument = { nav.navigate(Routes.doc(it)) }, onLeave = { nav.popBackStack() }) }
                 }
                 composable(Routes.CODES, arguments = listOf(navArgument("scan") { type = NavType.BoolType; defaultValue = false })) { entry ->
                     CodesScreen(onBack = { nav.popBackStack() }, scanOnOpen = entry.arguments!!.getBoolean("scan"))
                 }
                 composable(Routes.REDACT, arguments = listOf(navArgument("pageId") { type = NavType.LongType })) { entry ->
-                    RedactScreen(entry.arguments!!.getLong("pageId"), onClose = { nav.popBackStack() })
+                    DarkStudio { RedactScreen(entry.arguments!!.getLong("pageId"), onClose = { nav.popBackStack() }) }
                 }
                 composable(Routes.SIGN, arguments = listOf(navArgument("pageId") { type = NavType.LongType })) { entry ->
-                    SignatureScreen(entry.arguments!!.getLong("pageId"), appContainer().pages, onClose = { nav.popBackStack() })
+                    DarkStudio { SignatureScreen(entry.arguments!!.getLong("pageId"), appContainer().pages, onClose = { nav.popBackStack() }) }
                 }
                 composable(
                     Routes.OCR,

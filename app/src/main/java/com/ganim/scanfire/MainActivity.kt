@@ -18,6 +18,7 @@ import com.ganim.scanfire.data.Settings
 import com.ganim.scanfire.security.AppLock
 import com.ganim.scanfire.ui.LockScreen
 import com.ganim.scanfire.ui.ScanFireRoot
+import com.ganim.scanfire.ui.WelcomeScreen
 import com.ganim.scanfire.ui.common.container
 import com.ganim.scanfire.ui.theme.ScanFireTheme
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -61,9 +62,19 @@ class MainActivity : FragmentActivity() {
         }
 
         setContent {
-            val settings by container.settings.settings.collectAsStateWithLifecycle(initialValue = Settings())
+            // Null until DataStore answers, so the welcome never flashes for people who have seen it.
+            val loaded by container.settings.settings.collectAsStateWithLifecycle(initialValue = null)
+            val settings = loaded ?: Settings()
+            // Opened from a share or shortcut on first run: go straight to the work and skip the welcome for good.
+            val openedWithContent = androidx.compose.runtime.remember { incoming.value != null }
+            if (openedWithContent && loaded?.welcomed == false) androidx.compose.runtime.LaunchedEffect(Unit) { container.settings.setWelcomed() }
             ScanFireTheme(themeMode = settings.themeMode, dynamicColor = settings.dynamicColor) {
-                if (locked) LockScreen(onUnlock = ::unlock) else ScanFireRoot(incoming)
+                when {
+                    loaded == null -> Unit
+                    locked -> LockScreen(onUnlock = ::unlock)
+                    !settings.welcomed && !openedWithContent -> WelcomeScreen(onStart = { lifecycleScope.launch { container.settings.setWelcomed() } })
+                    else -> ScanFireRoot(incoming)
+                }
             }
         }
     }

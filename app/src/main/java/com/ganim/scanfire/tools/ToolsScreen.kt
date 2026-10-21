@@ -55,6 +55,13 @@ import com.ganim.scanfire.export.CreateTypedDocument
 import com.ganim.scanfire.export.Sharing
 import com.ganim.scanfire.ui.BusyOverlay
 import com.ganim.scanfire.ui.common.containerViewModel
+import com.ganim.scanfire.ui.common.GroupDivider
+import com.ganim.scanfire.ui.common.GroupRow
+import com.ganim.scanfire.ui.common.ScreenHeader
+import com.ganim.scanfire.ui.common.Tint
+import com.ganim.scanfire.ui.common.ToolButton
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.material3.Surface
 
 /** A tile on the Tools tab. Scan tools (phase 7) are passed in by the caller. */
 data class ToolTile(val title: String, val description: String, val icon: ImageVector, val onClick: () -> Unit)
@@ -99,21 +106,33 @@ fun ToolsScreen(
     }
 
     Box(Modifier.fillMaxSize()) {
-        Scaffold(topBar = { TopAppBar(title = { Text("Tools") }) }) { padding ->
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(160.dp),
-                contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = padding.calculateTopPadding(), bottom = 24.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.fillMaxSize(),
-            ) {
-                if (scanTools.isNotEmpty()) {
-                    item(span = { GridItemSpan(maxLineSpan) }) { Section("Scan") }
-                    items(scanTools) { ToolCard(it.title, it.description, it.icon, it.onClick) }
+        Column(Modifier.fillMaxSize()) {
+        ScreenHeader("Tools", "Everything here works without internet")
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(150.dp),
+            contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 28.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.fillMaxSize(),
+        ) {
+            if (scanTools.isNotEmpty()) {
+                item(span = { GridItemSpan(maxLineSpan) }) { Section("Scan and create") }
+                itemsIndexed(scanTools) { i, tool ->
+                    ToolButton(tool.title, tool.icon, Tint.entries[i % Tint.entries.size], Modifier.fillMaxWidth(), onClick = tool.onClick)
                 }
-                item(span = { GridItemSpan(maxLineSpan) }) { Section("PDF") }
-                items(PdfTool.entries) { tool -> ToolCard(tool.title, tool.description, tool.icon) { start(tool) } }
             }
+            item(span = { GridItemSpan(maxLineSpan) }) { Section("PDF files") }
+            item(span = { GridItemSpan(maxLineSpan) }) {
+                Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceContainerLow, shadowElevation = 1.dp) {
+                    Column {
+                        PdfTool.entries.forEachIndexed { i, tool ->
+                            if (i > 0) GroupDivider()
+                            GroupRow(tool.title, tool.description, tool.icon, onClick = { start(tool) })
+                        }
+                    }
+                }
+            }
+        }
         }
         (step as? ToolStep.Working)?.let { BusyOverlay(it.message) }
     }
@@ -150,7 +169,7 @@ fun ToolsScreen(
 
 @Composable
 private fun Section(title: String) {
-    Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 12.dp, start = 4.dp))
+    Text(title.uppercase(), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 14.dp, bottom = 2.dp))
 }
 
 @Composable

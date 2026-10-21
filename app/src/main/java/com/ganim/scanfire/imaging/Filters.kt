@@ -7,9 +7,11 @@ import com.ganim.scanfire.BuildConfig
 
 enum class PageFilter(val key: String, val label: String) {
     Original("original", "Original"),
-    Enhance("enhance", "Enhance"),
-    Magic("magic", "Magic color"),
-    Gray("gray", "Grayscale"),
+    /** Whitens paper, removes shadows and colour casts, sharpens text. */
+    Magic("magic", "Clear scan"),
+    /** Brighter and crisper, colours kept as they are. */
+    Enhance("enhance", "Bright"),
+    Gray("gray", "Grey"),
     BlackWhite("bw", "B&W"),
     ;
 

@@ -47,8 +47,8 @@ fun DocumentRoute(docId: Long, nav: NavHostController, capture: Capture) {
             onScanMore = { capture.scan(CaptureTarget.AddTo(docId)) },
             onImportMore = { capture.pickImages(CaptureTarget.AddTo(docId)) },
             bottomActions = listOf(
-                DocumentAction("Text", Icons.Outlined.TextFields) { nav.navigate(Routes.ocr(docId)) },
-                DocumentAction("Export", Icons.Outlined.IosShare) { exportPages = LongArray(0) },
+                DocumentAction("Share", Icons.Outlined.IosShare) { exportPages = LongArray(0) },
+                DocumentAction("Get text", Icons.Outlined.TextFields) { nav.navigate(Routes.ocr(docId)) },
             ),
             menuActions = listOf(
                 DocumentAction("Reorder pages", Icons.Outlined.SwapVert) { nav.navigate(Routes.reorder(docId)) },
