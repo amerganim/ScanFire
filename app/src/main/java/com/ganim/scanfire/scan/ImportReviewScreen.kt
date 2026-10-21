@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -83,7 +84,7 @@ fun ImportReviewScreen(vm: CaptureViewModel, onNewDocument: (Long) -> Unit, onLe
             val item = items.getOrNull(pager.currentPage)
             if (item != null) {
                 Surface(tonalElevation = 3.dp) {
-                    Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(
                             if (item.detected == null) "No page edge found. Drag the corners onto the page, or keep the whole photo."
                             else "Drag the corners if the outline is off.",

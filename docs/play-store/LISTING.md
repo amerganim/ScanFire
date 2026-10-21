@@ -9,7 +9,7 @@ Everything needed to fill in Play Console for ScanFire 1.1.0 (versionCode 2).
 | App bundle (upload this) | `app/build/outputs/bundle/release/app-release.aab`, built with `gradlew bundleRelease` |
 | App icon 512×512 | `docs/play-store/graphics/icon-512.png` |
 | Feature graphic 1024×500 | `docs/play-store/graphics/feature-graphic-1024x500.png` |
-| Phone screenshots (2–8, 9:16) | still to take on the phone; see "Screenshots" below |
+| Phone screenshots (7, 1080×2340) | `docs/play-store/screenshots/01-home.png` … `07-tools.png`, demo documents only |
 | Privacy policy URL | https://amerganim.github.io/scanfire-privacy/ (source: github.com/amerganim/scanfire-privacy) |
 
 ## Signing
