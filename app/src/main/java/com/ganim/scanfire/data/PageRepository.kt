@@ -120,16 +120,29 @@ class PageRepository(
      * The current rotation and crop are baked into a new original so later edits keep the stamp
      * in place; the filter is re-applied on top.
      */
-    suspend fun stamp(pageId: Long, overlay: Bitmap, rect: RectF) = withContext(Dispatchers.IO) {
+    suspend fun stamp(pageId: Long, overlay: Bitmap, rect: RectF) = bake(pageId, keepText = true) { canvas, w, h ->
+        canvas.drawBitmap(overlay, null, RectF(rect.left * w, rect.top * h, rect.right * w, rect.bottom * h), android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG))
+    }
+
+    /**
+     * Blacks out [boxes] (normalised to the page as shown) for good: they go into the new original, so
+     * no edit can bring the content back, and the page's cached text is dropped too.
+     */
+    suspend fun redact(pageId: Long, boxes: List<RectF>) = bake(pageId, keepText = false) { canvas, w, h ->
+        val paint = android.graphics.Paint().apply { color = android.graphics.Color.BLACK }
+        boxes.forEach { b ->
+            // A little padding so letter edges and anti-aliasing don't peek out.
+            val padX = (b.height() * h) * 0.15f
+            canvas.drawRect(b.left * w - padX, b.top * h - padX, b.right * w + padX, b.bottom * h + padX, paint)
+        }
+    }
+
+    private suspend fun bake(pageId: Long, keepText: Boolean, draw: (android.graphics.Canvas, Float, Float) -> Unit) = withContext(Dispatchers.IO) {
         val page = db.pages().get(pageId) ?: return@withContext
         val source = Bitmaps.decode(originalFile(page)) ?: return@withContext
         val base = PageRenderer.render(source, page.rotation, RectF(page.cropLeft, page.cropTop, page.cropRight, page.cropBottom), "original")
             .copy(Bitmap.Config.ARGB_8888, true)
-        android.graphics.Canvas(base).drawBitmap(
-            overlay, null,
-            RectF(rect.left * base.width, rect.top * base.height, rect.right * base.width, rect.bottom * base.height),
-            android.graphics.Paint(android.graphics.Paint.FILTER_BITMAP_FLAG),
-        )
+        draw(android.graphics.Canvas(base), base.width.toFloat(), base.height.toFloat())
         val originalName = files.newImageName("_o")
         val imageName = files.newImageName()
         Bitmaps.save(base, files.file(page.documentId, originalName), quality = 95)
@@ -137,7 +150,9 @@ class PageRepository(
         db.pages().update(
             page.copy(
                 originalFile = originalName, imageFile = imageName, rotation = 0,
-                cropLeft = 0f, cropTop = 0f, cropRight = 1f, cropBottom = 1f, updatedAt = System.currentTimeMillis(),
+                cropLeft = 0f, cropTop = 0f, cropRight = 1f, cropBottom = 1f,
+                ocrText = if (keepText) page.ocrText else null,
+                updatedAt = System.currentTimeMillis(),
             ),
         )
         db.documents().touch(page.documentId)

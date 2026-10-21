@@ -44,6 +44,8 @@ import com.ganim.scanfire.pdf.PdfPasswordRequired
 import com.ganim.scanfire.settings.SettingsScreen
 import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.compose.material.icons.outlined.Draw
+import androidx.compose.material.icons.outlined.HideSource
+import com.ganim.scanfire.privacy.RedactScreen
 import androidx.compose.material.icons.outlined.TextFields
 import androidx.compose.ui.platform.LocalContext
 import com.ganim.scanfire.edit.SignatureScreen
@@ -92,6 +94,8 @@ object Routes {
     fun codes(scan: Boolean) = "codes?scan=$scan"
     const val IMPORT_REVIEW = "import-review"
     const val OCR_LANGUAGES = "ocr-languages"
+    const val REDACT = "redact/{pageId}"
+    fun redact(pageId: Long) = "redact/$pageId"
     const val SIGN = "sign/{pageId}"
     fun sign(pageId: Long) = "sign/$pageId"
     const val OCR = "ocr/{docId}/{pageId}"
@@ -215,6 +219,7 @@ fun ScanFireRoot(incoming: MutableStateFlow<Incoming?> = MutableStateFlow(null))
                             PageAction("Edit", Icons.Outlined.Tune) { nav.navigate(Routes.edit(it.id)) },
                             PageAction("Text", Icons.Outlined.TextFields) { nav.navigate(Routes.ocr(docId, it.id)) },
                             PageAction("Sign", Icons.Outlined.Draw) { nav.navigate(Routes.sign(it.id)) },
+                            PageAction("Redact", Icons.Outlined.HideSource) { nav.navigate(Routes.redact(it.id)) },
                         ),
                     )
                 }
