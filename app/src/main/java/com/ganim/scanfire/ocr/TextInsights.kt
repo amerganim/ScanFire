@@ -124,7 +124,7 @@ object TextInsights {
     fun findTotal(text: String): String? {
         val t = asciiDigits(text)
         val label = """(?i)(grand\s+total|total\s+amount|net\s+total|total|amount\s+due|amount|সর্বমোট|মোট|कुल)"""
-        return Regex("""$label\s*[:=]?\s*(?:[A-Za-z৳$€£₹]{0,3}\.?\s*)(\d{1,3}(?:[,\s]\d{3})+(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)""")
+        return Regex("""$label\s*(?:\(\s*[A-Za-z৳$€£₹]{1,3}\s*\))?\s*[:=]?\s*(?:[A-Za-z৳$€£₹]{0,3}\.?\s*)(\d{1,3}(?:[,\s]\d{3})+(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?)""")
             .findAll(t).lastOrNull()?.groupValues?.get(2)?.replace(" ", "")
     }
 

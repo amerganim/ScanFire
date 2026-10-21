@@ -30,6 +30,13 @@ class ExpenseParserTest {
     }
 
     @Test
+    fun `reads a total with the currency in brackets`() {
+        val g = ExpenseParser.guess("INVOICE\nLogo design 35,000.00\nTotal (BDT) 85,500.00", fallbackCurrency = "USD")
+        g.amountMinor shouldBe 8550000
+        g.currency shouldBe "BDT"
+    }
+
+    @Test
     fun `minor units are exact`() {
         ExpenseParser.toMinor("1,250.5") shouldBe 125050
         ExpenseParser.toMinor("৪৫০") shouldBe 45000
